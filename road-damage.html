@@ -1,0 +1,577 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Road Damage Detection - Model Comparison</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: 'Segoe UI', system-ui, sans-serif; background: #0f1117; color: #e1e4e8; }
+
+    header { background: #161b22; border-bottom: 1px solid #30363d; padding: 20px 40px; }
+    header h1 { font-size: 22px; font-weight: 600; }
+    header p { color: #8b949e; margin-top: 4px; font-size: 14px; }
+
+    .prompt-section { background: #161b22; border: 1px solid #30363d; border-radius: 8px; margin: 24px 40px 0; padding: 20px; }
+    .prompt-section h3 { font-size: 13px; text-transform: uppercase; letter-spacing: 0.5px; color: #8b949e; margin-bottom: 10px; }
+    .prompt-box { background: #0d1117; border: 1px solid #30363d; border-radius: 6px; padding: 14px 16px; font-family: 'SF Mono', 'Fira Code', monospace; font-size: 13px; line-height: 1.6; color: #c9d1d9; white-space: pre-wrap; }
+
+    .cards-container { padding: 24px 40px; display: flex; flex-direction: column; gap: 32px; }
+
+    .image-card { background: #161b22; border: 1px solid #30363d; border-radius: 10px; overflow: hidden; }
+    .image-card-header { padding: 16px 20px; border-bottom: 1px solid #30363d; display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+    .image-card-header h2 { font-size: 16px; font-weight: 600; margin-right: auto; }
+    .image-card-header .badge { font-size: 12px; padding: 3px 10px; border-radius: 12px; font-weight: 500; }
+    .badge-high { background: #da363340; color: #f85149; border: 1px solid #da363360; }
+    .badge-low { background: #23883040; color: #3fb950; border: 1px solid #23883060; }
+    .badge-medium { background: #d29a2840; color: #d29922; border: 1px solid #d29a2860; }
+
+    .analyze-btn {
+      background: #238636; color: #fff; border: 1px solid #2ea04366; border-radius: 6px;
+      padding: 6px 16px; font-size: 13px; font-weight: 600; cursor: pointer;
+      display: inline-flex; align-items: center; gap: 6px; transition: background 0.15s;
+    }
+    .analyze-btn:hover { background: #2ea043; }
+    .analyze-btn:disabled { background: #21262d; color: #484f58; border-color: #30363d; cursor: not-allowed; }
+    .analyze-btn .spinner {
+      width: 14px; height: 14px; border: 2px solid #ffffff44; border-top-color: #fff;
+      border-radius: 50%; animation: spin 0.6s linear infinite; display: none;
+    }
+    .analyze-btn.loading .spinner { display: inline-block; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* 3-column grid shared by previews and results */
+    .three-col { display: grid; grid-template-columns: 1fr 1fr 1fr; }
+    .three-col > div { padding: 16px; border-right: 1px solid #30363d; }
+    .three-col > div:last-child { border-right: none; }
+
+    .image-previews { border-bottom: 1px solid #30363d; }
+
+    .col-header {
+      font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px; color: #8b949e;
+      margin-bottom: 10px; padding-bottom: 6px; border-bottom: 1px solid #30363d;
+      display: flex; align-items: center; gap: 6px;
+    }
+    .col-header .dot { width: 8px; height: 8px; border-radius: 50%; }
+    .dot-gt { background: #f0883e; }
+    .dot-gemma { background: #58a6ff; }
+    .dot-gemini { background: #d2a8ff; }
+    .dot-tuned { background: #3fb950; }
+
+    .img-container { position: relative; cursor: pointer; overflow: hidden; }
+    .img-container img { width: 100%; border-radius: 6px; border: 1px solid #30363d; display: block; }
+    .img-container:hover { opacity: 0.9; }
+
+    .bbox { position: absolute; border: 2px solid; border-radius: 2px; pointer-events: none; }
+    .bbox-label { position: absolute; top: -16px; left: -1px; font-size: 10px; font-weight: 700; padding: 1px 4px; border-radius: 2px; font-family: monospace; white-space: nowrap; }
+    .bbox-D00 { border-color: #58a6ff; }
+    .bbox-D00 .bbox-label { background: #58a6ff; color: #0d1117; }
+    .bbox-D10 { border-color: #d2a8ff; }
+    .bbox-D10 .bbox-label { background: #d2a8ff; color: #0d1117; }
+    .bbox-D20 { border-color: #f0883e; }
+    .bbox-D20 .bbox-label { background: #f0883e; color: #0d1117; }
+    .bbox-D40 { border-color: #f85149; }
+    .bbox-D40 .bbox-label { background: #f85149; color: #0d1117; }
+
+    .ground-truth { background: #0d1117; border: 1px solid #30363d; border-radius: 6px; padding: 12px; margin-top: 10px; }
+    .ground-truth h4 { font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px; color: #8b949e; margin-bottom: 8px; }
+    .gt-row { display: flex; align-items: center; gap: 8px; padding: 4px 0; font-size: 13px; }
+    .gt-code { font-family: monospace; background: #1f6feb30; color: #58a6ff; padding: 2px 8px; border-radius: 4px; font-size: 12px; font-weight: 600; }
+    .gt-count { color: #8b949e; }
+
+    .legend { display: flex; gap: 16px; margin-top: 4px; }
+    .legend-item { display: flex; align-items: center; gap: 4px; font-size: 11px; color: #8b949e; }
+    .legend-swatch { width: 12px; height: 3px; border-radius: 1px; }
+
+    /* Detection summary box (same style as ground-truth) */
+    .detection-summary { background: #0d1117; border: 1px solid #30363d; border-radius: 6px; padding: 12px; margin-top: 10px; }
+    .detection-summary h4 { font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px; color: #8b949e; margin-bottom: 8px; display: flex; align-items: center; justify-content: space-between; }
+    .detection-summary .gt-row { display: flex; align-items: center; gap: 8px; padding: 4px 0; font-size: 13px; }
+    .detection-summary .gt-code { font-family: monospace; background: #1f6feb30; color: #58a6ff; padding: 2px 8px; border-radius: 4px; font-size: 12px; font-weight: 600; }
+    .detection-summary .gt-count { color: #8b949e; }
+    .detection-summary .fp-tag { background: #da363330; color: #f85149; font-size: 10px; padding: 1px 6px; border-radius: 3px; margin-left: 4px; font-weight: 600; }
+    .detection-summary .missed-tag { color: #f85149; font-size: 12px; }
+    .detection-summary .correct-tag { color: #3fb950; font-size: 11px; margin-left: 4px; }
+    .detection-summary .count-compare { font-size: 11px; margin-left: 4px; }
+    .count-over { color: #d29922; }
+    .count-under { color: #f85149; }
+    .count-exact { color: #3fb950; }
+
+    .score-badge {
+      display: inline-block; padding: 3px 8px; border-radius: 4px;
+      font-size: 12px; font-weight: 700; font-family: monospace;
+    }
+    .score-good { background: #23883040; color: #3fb950; border: 1px solid #23883060; }
+    .score-warn { background: #d29a2840; color: #d29922; border: 1px solid #d29a2860; }
+    .score-bad { background: #da363340; color: #f85149; border: 1px solid #da363360; }
+
+    .no-defects { color: #484f58; font-style: italic; font-size: 13px; padding: 8px 0; }
+    .model-info-line { font-size: 11px; color: #484f58; font-style: italic; margin-top: 6px; }
+    .model-info-line.has-error { color: #f85149; font-style: normal; }
+
+    .tuned-placeholder { display: flex; align-items: center; justify-content: center; min-height: 80px; color: #484f58; font-size: 13px; font-style: italic; border: 2px dashed #30363d; border-radius: 8px; margin-top: 10px; }
+
+    /* Lightbox */
+    .lightbox { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: #000000ee; z-index: 1000; justify-content: center; align-items: center; cursor: zoom-out; }
+    .lightbox.active { display: flex; }
+    .lightbox-inner { position: relative; max-width: 95vw; max-height: 95vh; }
+    .lightbox-inner img { max-width: 95vw; max-height: 95vh; border-radius: 8px; }
+    .lightbox .bbox-label { font-size: 13px; top: -20px; padding: 2px 6px; }
+    .lightbox .bbox { border-width: 3px; }
+    .lightbox-close { position: fixed; top: 20px; right: 30px; color: #fff; font-size: 32px; cursor: pointer; z-index: 1001; }
+
+    @media (max-width: 1200px) {
+      .three-col { grid-template-columns: 1fr; }
+      .three-col > div { border-right: none; border-bottom: 1px solid #30363d; }
+      .three-col > div:last-child { border-bottom: none; }
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;">
+    <div>
+      <h1>Road Damage Detection - Model Comparison</h1>
+      <p>Gemma 3n E4B-IT | Gemini 3.1 Pro | Tuned Model &mdash; vs Ground Truth (RDD2022) | DPD/Geopost Street Analytics</p>
+      <div style="margin-top:8px;"><a href="/" style="color:#58a6ff;font-size:13px;text-decoration:none;">&larr; Home</a> &nbsp;|&nbsp; <a href="/shop-hours" style="color:#58a6ff;font-size:13px;text-decoration:none;">Shop Opening Hours Detection &rarr;</a></div>
+    </div>
+    <button class="analyze-btn" id="analyze-all-btn" onclick="analyzeAll()">
+      <span class="spinner"></span>
+      <span>Analyze All Images</span>
+    </button>
+  </div>
+  <div id="analyze-progress" style="margin-top:8px;font-size:13px;color:#8b949e;display:none;"></div>
+</header>
+
+<div class="prompt-section">
+  <h3>Prompt (same for all models)</h3>
+  <div class="prompt-box">You are a road condition assessment AI. Analyse this dashcam image and classify road damage using the RDD2022 defect codes:
+- D00: Longitudinal crack
+- D10: Transverse crack
+- D20: Alligator crack
+- D40: Pothole / rutting
+
+For each defect found, provide:
+- defect_code (D00/D10/D20/D40)
+- count of instances
+- severity (low/medium/high)
+- bounding_boxes: array of {xmin, ymin, xmax, ymax} as percentages (0-100) of image dimensions
+
+Only include defect types that are actually present. Return ONLY a JSON object with a "defects" array.</div>
+</div>
+
+<!-- Lightbox -->
+<div class="lightbox" id="lightbox" onclick="closeLightbox()">
+  <span class="lightbox-close">&times;</span>
+  <div class="lightbox-inner" id="lightbox-inner"></div>
+</div>
+
+<div class="cards-container" id="cards-container"></div>
+
+<script>
+const IMAGE_BASE = 'https://storage.googleapis.com/dpd-street-detection/images';
+
+const gtBoxes = {
+  "Norway_000000": [
+    {code:"D00",xmin:31.19,ymin:62.72,xmax:32.04,ymax:65.40},
+    {code:"D20",xmin:42.12,ymin:55.37,xmax:44.63,ymax:61.04},
+    {code:"D00",xmin:48.59,ymin:89.33,xmax:51.03,ymax:99.74},
+    {code:"D00",xmin:43.53,ymin:63.42,xmax:44.51,ymax:65.73},
+    {code:"D00",xmin:41.30,ymin:59.52,xmax:41.85,ymax:61.36}
+  ],
+  "Norway_000005": [
+    {code:"D00",xmin:31.24,ymin:56.98,xmax:35.08,ymax:58.70},
+    {code:"D00",xmin:4.26,ymin:78.37,xmax:21.29,ymax:99.53},
+    {code:"D40",xmin:32.61,ymin:66.27,xmax:35.36,ymax:68.79},
+    {code:"D40",xmin:35.25,ymin:69.86,xmax:37.72,ymax:71.22},
+    {code:"D40",xmin:40.34,ymin:58.83,xmax:42.48,ymax:60.29},
+    {code:"D40",xmin:48.45,ymin:56.47,xmax:49.50,ymax:57.08},
+    {code:"D40",xmin:48.12,ymin:71.76,xmax:49.61,ymax:73.26},
+    {code:"D00",xmin:48.77,ymin:54.65,xmax:49.52,ymax:55.94},
+    {code:"D00",xmin:45.18,ymin:74.88,xmax:47.90,ymax:91.10},
+    {code:"D40",xmin:33.31,ymin:73.30,xmax:36.46,ymax:75.56},
+    {code:"D00",xmin:36.85,ymin:54.92,xmax:42.16,ymax:58.33},
+    {code:"D00",xmin:0.31,ymin:89.20,xmax:4.22,ymax:93.82},
+    {code:"D00",xmin:43.37,ymin:55.76,xmax:44.87,ymax:57.25}
+  ],
+  "Norway_000010": [
+    {code:"D40",xmin:5.08,ymin:87.84,xmax:7.12,ymax:90.00}
+  ],
+  "Norway_000440": [
+    {code:"D00",xmin:39.56,ymin:53.56,xmax:40.45,ymax:59.78},
+    {code:"D00",xmin:40.53,ymin:53.42,xmax:41.44,ymax:56.79},
+    {code:"D00",xmin:46.61,ymin:84.55,xmax:49.86,ymax:91.10},
+    {code:"D00",xmin:41.21,ymin:56.76,xmax:43.04,ymax:66.50},
+    {code:"D40",xmin:34.41,ymin:57.59,xmax:36.36,ymax:59.19},
+    {code:"D40",xmin:93.87,ymin:76.74,xmax:100.0,ymax:84.72},
+    {code:"D40",xmin:66.78,ymin:85.30,xmax:81.55,ymax:97.81},
+    {code:"D10",xmin:40.64,ymin:78.67,xmax:45.63,ymax:80.35},
+    {code:"D10",xmin:21.60,ymin:83.20,xmax:30.44,ymax:85.47}
+  ],
+  "Norway_000500": [],
+  "Norway_000550": [
+    {code:"D00",xmin:39.98,ymin:86.14,xmax:41.30,ymax:99.24},
+    {code:"D00",xmin:43.74,ymin:94.71,xmax:44.97,ymax:98.91},
+    {code:"D00",xmin:45.41,ymin:97.63,xmax:47.29,ymax:99.91},
+    {code:"D20",xmin:31.61,ymin:53.10,xmax:34.52,ymax:57.53},
+    {code:"D40",xmin:30.42,ymin:57.63,xmax:31.55,ymax:58.07},
+    {code:"D00",xmin:44.54,ymin:91.41,xmax:45.85,ymax:95.15},
+    {code:"D20",xmin:15.03,ymin:59.04,xmax:29.57,ymax:71.52},
+    {code:"D00",xmin:39.47,ymin:55.61,xmax:41.39,ymax:59.09},
+    {code:"D10",xmin:44.97,ymin:90.34,xmax:58.56,ymax:93.11},
+    {code:"D20",xmin:0.0,ymin:79.74,xmax:33.41,ymax:99.89},
+    {code:"D20",xmin:4.69,ymin:71.42,xmax:18.79,ymax:79.57}
+  ]
+};
+
+const imageCards = [
+  { id: "Norway_000000", gtCount: 5, badge: "medium", gtSummary: [
+    {code:"D00", label:"Longitudinal crack", count:4},
+    {code:"D20", label:"Alligator crack", count:1}
+  ]},
+  { id: "Norway_000005", gtCount: 13, badge: "high", gtSummary: [
+    {code:"D00", label:"Longitudinal crack", count:7},
+    {code:"D40", label:"Pothole / rutting", count:6}
+  ]},
+  { id: "Norway_000010", gtCount: 1, badge: "low", gtSummary: [
+    {code:"D40", label:"Pothole / rutting", count:1}
+  ]},
+  { id: "Norway_000440", gtCount: 9, badge: "high", gtSummary: [
+    {code:"D00", label:"Longitudinal crack", count:4},
+    {code:"D10", label:"Transverse crack", count:2},
+    {code:"D40", label:"Pothole / rutting", count:3}
+  ]},
+  { id: "Norway_000500", gtCount: 0, badge: "low", gtSummary: []},
+  { id: "Norway_000550", gtCount: 11, badge: "high", gtSummary: [
+    {code:"D00", label:"Longitudinal crack", count:5},
+    {code:"D10", label:"Transverse crack", count:1},
+    {code:"D20", label:"Alligator crack", count:4},
+    {code:"D40", label:"Pothole / rutting", count:1}
+  ]}
+];
+
+const codeColors = { D00:'#58a6ff', D10:'#d2a8ff', D20:'#f0883e', D40:'#f85149' };
+const codeLabels = { D00:'Longitudinal crack', D10:'Transverse crack', D20:'Alligator crack', D40:'Pothole / rutting' };
+
+function drawBoxes(container, boxes) {
+  if (!container) return;
+  container.querySelectorAll('.bbox').forEach(b => b.remove());
+  boxes.forEach(b => {
+    // Clamp to valid range
+    const xmin = Math.max(0, Math.min(100, b.xmin));
+    const ymin = Math.max(0, Math.min(100, b.ymin));
+    const xmax = Math.max(0, Math.min(100, b.xmax));
+    const ymax = Math.max(0, Math.min(100, b.ymax));
+    const w = xmax - xmin;
+    const h = ymax - ymin;
+    if (w <= 0 || h <= 0) return; // Skip invalid boxes
+    const div = document.createElement('div');
+    div.className = `bbox bbox-${b.code}`;
+    div.style.left = xmin + '%';
+    div.style.top = ymin + '%';
+    div.style.width = w + '%';
+    div.style.height = h + '%';
+    div.innerHTML = `<span class="bbox-label">${b.code}</span>`;
+    container.appendChild(div);
+  });
+}
+
+// Compute score: how many GT defect types did the model detect?
+function computeScore(imageId, modelResult) {
+  const card = imageCards.find(c => c.id === imageId);
+  if (!card) return null;
+
+  // GT counts per code
+  const gtCodes = {};
+  (card.gtSummary || []).forEach(g => { gtCodes[g.code] = g.count; });
+  const gtTotal = card.gtCount;
+
+  if (gtTotal === 0) {
+    // Clean road: score is based on false positives
+    const defects = (modelResult.defects || []).filter(d => (d.count || 0) > 0);
+    if (defects.length === 0) return { correct: 0, total: 0, fp: 0, label: 'Correct (clean road)', cls: 'score-good' };
+    const fpCount = defects.reduce((sum, d) => sum + (d.count || 1), 0);
+    return { correct: 0, total: 0, fp: fpCount, label: `${fpCount} false positive${fpCount > 1 ? 's' : ''}`, cls: 'score-bad' };
+  }
+
+  // For each GT code, check if model detected it
+  const modelCodes = {};
+  (modelResult.defects || []).forEach(d => {
+    const code = d.defect_code || d.code || '';
+    const count = d.count || (d.bounding_boxes || []).length || 1;
+    if (count > 0) modelCodes[code] = (modelCodes[code] || 0) + count;
+  });
+
+  let correct = 0;
+  const gtCodeList = Object.keys(gtCodes);
+  gtCodeList.forEach(code => {
+    if (modelCodes[code]) correct++;
+  });
+
+  // False positives: codes model detected but not in GT
+  const fpCodes = Object.keys(modelCodes).filter(c => !gtCodes[c]);
+
+  const total = gtCodeList.length;
+  const pct = total > 0 ? correct / total : 1;
+  const cls = pct >= 0.8 ? 'score-good' : pct >= 0.5 ? 'score-warn' : 'score-bad';
+  let label = `${correct}/${total} defect types detected`;
+  if (fpCodes.length > 0) label += ` + ${fpCodes.length} false`;
+
+  return { correct, total, fp: fpCodes.length, label, cls };
+}
+
+function buildCard(card) {
+  const imgSrc = `${IMAGE_BASE}/${card.id}.jpg`;
+  const gtLabel = card.gtCount === 0 ? '' :
+    card.gtSummary.map(g => `<div class="gt-row"><span class="gt-code">${g.code}</span> ${g.label} <span class="gt-count">x${g.count}</span></div>`).join('');
+  const legendItems = card.gtSummary.map(g =>
+    `<div class="legend-item"><span class="legend-swatch" style="background:${codeColors[g.code]}"></span>${g.code}</div>`
+  ).join('');
+
+  return `
+  <div class="image-card" id="card-${card.id}">
+    <div class="image-card-header">
+      <h2>${card.id}.jpg</h2>
+      <span class="badge badge-${card.badge}">${card.gtCount} ground truth defect${card.gtCount !== 1 ? 's' : ''}</span>
+    </div>
+    <div class="three-col image-previews">
+      <!-- Ground Truth column -->
+      <div>
+        <div class="col-header"><span class="dot dot-gt"></span> Ground Truth</div>
+        <div class="img-container" id="gt-container-${card.id}" onclick="openLightbox('${card.id}', 'gt')">
+          <img src="${imgSrc}" alt="${card.id} GT" id="gt-img-${card.id}">
+        </div>
+        <div class="ground-truth">
+          <h4>RDD2022 Annotations</h4>
+          ${card.gtCount === 0 ? '<div class="gt-row" style="color:#3fb950;">Clean road</div>' : gtLabel}
+          ${legendItems ? `<div class="legend">${legendItems}</div>` : ''}
+        </div>
+      </div>
+      <!-- Gemma column -->
+      <div>
+        <div class="col-header"><span class="dot dot-gemma"></span> Gemma 3n E4B-IT</div>
+        <div class="img-container" id="gemma-container-${card.id}" onclick="openLightbox('${card.id}', 'gemma')">
+          <img src="${imgSrc}" alt="${card.id} Gemma" id="gemma-img-${card.id}">
+        </div>
+        <div id="gemma-results-${card.id}">
+          <div class="detection-summary" style="opacity:0.5;">
+            <h4>Model Detections</h4>
+            <div class="no-defects">Click "Analyze" to run</div>
+          </div>
+        </div>
+      </div>
+      <!-- Gemini column -->
+      <div>
+        <div class="col-header"><span class="dot dot-gemini"></span> Gemini 3.1 Pro</div>
+        <div class="img-container" id="gemini-container-${card.id}" onclick="openLightbox('${card.id}', 'gemini')">
+          <img src="${imgSrc}" alt="${card.id} Gemini" id="gemini-img-${card.id}">
+        </div>
+        <div id="gemini-results-${card.id}">
+          <div class="detection-summary" style="opacity:0.5;">
+            <h4>Model Detections</h4>
+            <div class="no-defects">Click "Analyze" to run</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>`;
+}
+
+// Store model boxes for lightbox
+const modelBoxes = {};
+
+function extractBoxesFromResult(result) {
+  const boxes = [];
+  const defects = result.defects || result.road_surface_defects || [];
+  defects.forEach(d => {
+    const code = d.defect_code || d.code || '';
+    const count = d.count || 0;
+    if (count === 0 && !(d.bounding_boxes || d.boxes || []).length) return;
+    const bboxes = d.bounding_boxes || d.boxes || [];
+    bboxes.forEach(bb => {
+      if (bb.xmin !== undefined) {
+        boxes.push({ code, xmin: bb.xmin, ymin: bb.ymin, xmax: bb.xmax, ymax: bb.ymax });
+      }
+    });
+  });
+  return boxes;
+}
+
+function renderDefectResults(imageId, modelResult, containerId) {
+  const el = document.getElementById(containerId);
+  if (!el) return;
+
+  if (modelResult.status === 'error') {
+    el.innerHTML = `<div class="detection-summary"><h4>Model Detections</h4>
+      <div class="gt-row" style="color:#f85149;">Error: ${modelResult.error}</div></div>`;
+    return;
+  }
+
+  const card = imageCards.find(c => c.id === imageId);
+  const parsed = modelResult.result || {};
+  const defects = (parsed.defects || parsed.road_surface_defects || [])
+    .filter(d => (d.count || 0) > 0 || (d.bounding_boxes || []).length > 0);
+
+  // Build GT lookup
+  const gtCodes = {};
+  if (card) card.gtSummary.forEach(g => { gtCodes[g.code] = g.count; });
+
+  // Score
+  const score = computeScore(imageId, parsed);
+  const scoreHtml = score ? `<span class="score-badge ${score.cls}">${score.label}</span>` : '';
+
+  let rows = '';
+
+  if (defects.length === 0 && card && card.gtCount === 0) {
+    rows = '<div class="gt-row" style="color:#3fb950;">No defects detected - Correct!</div>';
+  } else if (defects.length === 0) {
+    rows = '<div class="gt-row" style="color:#484f58; font-style:italic;">No defects detected</div>';
+  } else {
+    rows = defects.map(d => {
+      const code = d.defect_code || d.code || '??';
+      const label = codeLabels[code] || code;
+      const count = d.count || (d.bounding_boxes || []).length || 1;
+      const bboxCount = (d.bounding_boxes || d.boxes || []).length;
+      const isFP = card && card.gtCount >= 0 && !gtCodes[code];
+      const gtCount = gtCodes[code];
+
+      let compareHtml = '';
+      if (isFP) {
+        compareHtml = '<span class="fp-tag">FALSE POSITIVE</span>';
+      } else if (gtCount !== undefined) {
+        if (count === gtCount) compareHtml = '<span class="correct-tag">Correct!</span>';
+        else if (count > gtCount) compareHtml = `<span class="count-compare count-over">(GT: ${gtCount})</span>`;
+        else compareHtml = `<span class="count-compare count-under">(GT: ${gtCount})</span>`;
+      }
+
+      return `<div class="gt-row">
+        <span class="gt-code">${code}</span> ${label}
+        <span class="gt-count">x${count}${bboxCount ? ' (' + bboxCount + ' box' + (bboxCount > 1 ? 'es' : '') + ')' : ''}</span>
+        ${compareHtml}
+      </div>`;
+    }).join('');
+  }
+
+  // Show missed GT codes
+  if (card) {
+    const detectedCodes = new Set(defects.map(d => d.defect_code || d.code));
+    card.gtSummary.forEach(g => {
+      if (!detectedCodes.has(g.code)) {
+        rows += `<div class="gt-row missed-tag">${g.code} ${g.label} <span class="gt-count">MISSED (GT: x${g.count})</span></div>`;
+      }
+    });
+  }
+
+  // Build legend from detected codes
+  const detectedCodesArr = [...new Set(defects.map(d => d.defect_code || d.code).filter(c => codeColors[c]))];
+  const legendHtml = detectedCodesArr.length > 0 ?
+    `<div class="legend">${detectedCodesArr.map(c => `<div class="legend-item"><span class="legend-swatch" style="background:${codeColors[c]}"></span>${c}</div>`).join('')}</div>` : '';
+
+  el.innerHTML = `<div class="detection-summary">
+    <h4>Model Detections ${scoreHtml}</h4>
+    ${rows}
+    ${legendHtml}
+  </div>`;
+}
+
+function updateModelColumn(imageId, modelName, modelData) {
+  const boxes = modelData.status === 'ok' ? extractBoxesFromResult(modelData.result) : [];
+  modelBoxes[`${modelName}-${imageId}`] = boxes;
+  drawBoxes(document.getElementById(`${modelName}-container-${imageId}`), boxes);
+  renderDefectResults(imageId, modelData, `${modelName}-results-${imageId}`);
+}
+
+async function analyzeImage(imageId) {
+  // Show loading state
+  ['gemma', 'gemini'].forEach(m => {
+    document.getElementById(`${m}-results-${imageId}`).innerHTML =
+      `<div class="detection-summary"><h4>Model Detections</h4><div class="gt-row" style="color:#8b949e;">Running...</div></div>`;
+  });
+
+  try {
+    const resp = await fetch('/analyze', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ image_id: imageId })
+    });
+    const data = await resp.json();
+    updateModelColumn(imageId, 'gemma', data.gemma);
+    updateModelColumn(imageId, 'gemini', data.gemini);
+  } catch (err) {
+    ['gemma', 'gemini'].forEach(m => {
+      document.getElementById(`${m}-results-${imageId}`).innerHTML =
+        `<div class="detection-summary"><h4>Model Detections</h4><div class="gt-row" style="color:#f85149;">Request failed: ${err.message}</div></div>`;
+    });
+  }
+}
+
+async function analyzeAll() {
+  const btn = document.getElementById('analyze-all-btn');
+  const progress = document.getElementById('analyze-progress');
+  btn.classList.add('loading');
+  btn.disabled = true;
+  btn.querySelector('span:last-child').textContent = 'Analyzing...';
+  progress.style.display = 'block';
+
+  for (let i = 0; i < imageCards.length; i++) {
+    const card = imageCards[i];
+    progress.textContent = `Analyzing image ${i + 1} of ${imageCards.length}: ${card.id}.jpg ...`;
+    await analyzeImage(card.id);
+  }
+
+  progress.textContent = `Done - all ${imageCards.length} images analyzed.`;
+  btn.classList.remove('loading');
+  btn.disabled = false;
+  btn.querySelector('span:last-child').textContent = 'Re-analyze All';
+}
+
+function openLightbox(imageId, source) {
+  const lb = document.getElementById('lightbox');
+  const inner = document.getElementById('lightbox-inner');
+  const src = `${IMAGE_BASE}/${imageId}.jpg`;
+
+  let boxes = [];
+  if (source === 'gt') {
+    boxes = gtBoxes[imageId] || [];
+  } else {
+    boxes = modelBoxes[`${source}-${imageId}`] || [];
+  }
+
+  let boxHtml = '';
+  boxes.forEach(b => {
+    const xmin = Math.max(0, Math.min(100, b.xmin));
+    const ymin = Math.max(0, Math.min(100, b.ymin));
+    const w = Math.max(0, Math.min(100, b.xmax) - xmin);
+    const h = Math.max(0, Math.min(100, b.ymax) - ymin);
+    if (w <= 0 || h <= 0) return;
+    boxHtml += `<div class="bbox bbox-${b.code}" style="left:${xmin}%;top:${ymin}%;width:${w}%;height:${h}%"><span class="bbox-label">${b.code}</span></div>`;
+  });
+
+  inner.innerHTML = `<img src="${src}" alt="${imageId}">${boxHtml}`;
+  inner.style.position = 'relative';
+  inner.style.display = 'inline-block';
+  lb.classList.add('active');
+}
+
+function closeLightbox() {
+  document.getElementById('lightbox').classList.remove('active');
+}
+
+document.addEventListener('keydown', e => { if (e.key === 'Escape') closeLightbox(); });
+
+// Build all cards
+const container = document.getElementById('cards-container');
+container.innerHTML = imageCards.map(buildCard).join('');
+
+// Draw GT boxes once images load
+imageCards.forEach(card => {
+  const gtContainer = document.getElementById(`gt-container-${card.id}`);
+  const gtImg = document.getElementById(`gt-img-${card.id}`);
+  const drawGt = () => drawBoxes(gtContainer, gtBoxes[card.id] || []);
+  if (gtImg.complete) drawGt(); else gtImg.onload = drawGt;
+});
+</script>
+
+</body>
+</html>

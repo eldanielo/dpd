@@ -1,0 +1,566 @@
+import json
+import os
+import re
+import struct
+import base64
+from concurrent.futures import ThreadPoolExecutor
+
+import google.auth
+import google.auth.transport.requests
+import requests as http_requests
+from flask import Flask, request, jsonify, send_from_directory
+
+app = Flask(__name__, static_folder=".", static_url_path="")
+
+PROJECT = "mineral-concord-394714"
+GEMMA_ENDPOINT = (
+    "https://1901510802238603264.europe-west4-668228315581.prediction.vertexai.goog"
+    "/v1/projects/mineral-concord-394714/locations/europe-west4"
+    "/endpoints/1901510802238603264:rawPredict"
+)
+GEMINI_ENDPOINT = (
+    "https://aiplatform.googleapis.com/v1/projects/mineral-concord-394714"
+    "/locations/global/publishers/google/models/gemini-3.1-pro-preview:generateContent"
+)
+GCS_IMAGE_BASE = "gs://dpd-street-detection/images"
+GCS_PUBLIC_BASE = "https://storage.googleapis.com/dpd-street-detection/images"
+GCS_HOURS_IMAGE_BASE = "gs://dpd-street-detection/shop-hours"
+GCS_PUBLIC_BASE_HOURS = "https://storage.googleapis.com/dpd-street-detection/shop-hours"
+
+HOURS_PROMPT = (
+    "You are a shop detection AI analyzing street-level images of European storefronts. "
+    "Identify every shop, restaurant, cafe, or business visible in the image.\n\n"
+    "For each business found, provide:\n"
+    "- shop_name: the name visible on the signage\n"
+    "- opening_hours: any opening hours visible on the door, wall, or signage "
+    "(e.g. \"Mon-Fri 9:00-18:00\"). Use \"Not visible\" if no hours can be read.\n"
+    "- status: whether the shop appears to be \"open\", \"closed\", or \"unknown\" "
+    "based on visual cues (lights on, door open, OPEN/CLOSED sign, customers inside, "
+    "shutters down, etc.)\n"
+    "- bounding_box: {xmin, ymin, xmax, ymax} as PERCENTAGES of image dimensions "
+    "(0.0 to 100.0) around the shop front.\n\n"
+    "Return ONLY a JSON object (no markdown fences) with a \"shops\" array. "
+    "Each element must include shop_name, opening_hours, status, and bounding_box."
+)
+
+RDD_PROMPT = (
+    "You are a road condition assessment AI. Analyse this dashcam image and classify "
+    "road damage using the RDD2022 defect codes:\n"
+    "- D00: Longitudinal crack\n"
+    "- D10: Transverse crack\n"
+    "- D20: Alligator crack\n"
+    "- D40: Pothole / rutting\n\n"
+    "For each defect found, provide:\n"
+    "- defect_code (D00/D10/D20/D40)\n"
+    "- count of instances of this defect type\n"
+    "- severity (low/medium/high)\n"
+    "- bounding_boxes: an array of bounding box objects. Each bounding box has "
+    "{xmin, ymin, xmax, ymax} where values are PERCENTAGES of image dimensions "
+    "(0.0 to 100.0). For example, a box in the center-right of the image might be "
+    "{\"xmin\": 55.0, \"ymin\": 40.0, \"xmax\": 75.0, \"ymax\": 60.0}. "
+    "Values must be between 0 and 100.\n\n"
+    "Only include defect types that are actually present (count > 0). "
+    "Return ONLY a JSON object (no markdown fences) with a \"defects\" array."
+)
+
+
+def get_access_token():
+    """Get a fresh access token using default credentials."""
+    credentials, _ = google.auth.default(
+        scopes=["https://www.googleapis.com/auth/cloud-platform"]
+    )
+    credentials.refresh(google.auth.transport.requests.Request())
+    return credentials.token
+
+
+def download_image(image_id):
+    """Download image from GCS and return raw bytes."""
+    url = f"{GCS_PUBLIC_BASE}/{image_id}.jpg"
+    resp = http_requests.get(url, timeout=30)
+    resp.raise_for_status()
+    return resp.content
+
+
+def get_jpeg_dimensions(data):
+    """Extract width and height from JPEG data."""
+    i = 2
+    while i < len(data) - 1:
+        if data[i] == 0xFF:
+            marker = data[i + 1]
+            if marker in (0xC0, 0xC2):
+                h = struct.unpack(">H", data[i + 5 : i + 7])[0]
+                w = struct.unpack(">H", data[i + 7 : i + 9])[0]
+                return w, h
+            elif marker == 0xD9:
+                break
+            else:
+                length = struct.unpack(">H", data[i + 2 : i + 4])[0]
+                i += 2 + length
+        else:
+            i += 1
+    return None, None
+
+
+def parse_model_json(raw_text):
+    """Extract JSON from model response, stripping markdown fences if present."""
+    text = raw_text.strip()
+    # Strip markdown code fences
+    match = re.search(r"```(?:json)?\s*([\s\S]*?)```", text)
+    if match:
+        text = match.group(1).strip()
+    try:
+        return json.loads(text)
+    except json.JSONDecodeError:
+        # Try to find any JSON object in the text
+        match = re.search(r"\{[\s\S]*\}", text)
+        if match:
+            try:
+                return json.loads(match.group())
+            except json.JSONDecodeError:
+                pass
+        return {"raw_response": raw_text, "defects": []}
+
+
+def normalize_bboxes(parsed, img_width, img_height):
+    """Normalize bounding boxes to 0-100 percentages.
+
+    Detects coordinate system:
+    - 0-1000 scale (Gemini native): divide by 10
+    - Pixel coordinates (> 1000): convert using image dimensions
+    - Already 0-100: keep as-is
+    Clamp all values to 0-100.
+    """
+    defects = parsed.get("defects", [])
+
+    # Collect all coordinate values across all boxes to detect the scale
+    all_vals = []
+    for defect in defects:
+        for bb in defect.get("bounding_boxes", []):
+            all_vals.extend([
+                bb.get("xmin", 0), bb.get("ymin", 0),
+                bb.get("xmax", 0), bb.get("ymax", 0)
+            ])
+
+    if not all_vals:
+        return parsed
+
+    max_val = max(all_vals)
+
+    for defect in defects:
+        bboxes = defect.get("bounding_boxes", [])
+        for bb in bboxes:
+            if max_val > 1000 and img_width and img_height:
+                # Pixel coordinates - convert using image dimensions
+                bb["xmin"] = bb.get("xmin", 0) / img_width * 100
+                bb["xmax"] = bb.get("xmax", 0) / img_width * 100
+                bb["ymin"] = bb.get("ymin", 0) / img_height * 100
+                bb["ymax"] = bb.get("ymax", 0) / img_height * 100
+            elif max_val > 100:
+                # 0-1000 scale (Gemini native format) - divide by 10
+                bb["xmin"] = bb.get("xmin", 0) / 10.0
+                bb["xmax"] = bb.get("xmax", 0) / 10.0
+                bb["ymin"] = bb.get("ymin", 0) / 10.0
+                bb["ymax"] = bb.get("ymax", 0) / 10.0
+            # else: already 0-100 percentages
+
+            # Clamp to 0-100
+            for key in ("xmin", "ymin", "xmax", "ymax"):
+                bb[key] = round(max(0, min(100, bb.get(key, 0))), 2)
+
+        # Filter out boxes that are entirely in the top 35% of the image
+        # (sky/horizon area in dashcam images - road damage can't be there)
+        defect["bounding_boxes"] = [
+            bb for bb in bboxes
+            if bb.get("ymax", 0) > 35
+        ]
+    return parsed
+
+
+def call_gemma(image_id, token, img_data):
+    """Call Gemma 3n E4B-IT via the vLLM rawPredict endpoint."""
+    try:
+        img_b64 = base64.b64encode(img_data).decode()
+        img_w, img_h = get_jpeg_dimensions(img_data)
+        payload = {
+            "model": "google/gemma-3n-E4B-it",
+            "messages": [
+                {
+                    "role": "user",
+                    "content": [
+                        {
+                            "type": "image_url",
+                            "image_url": {
+                                "url": f"data:image/jpeg;base64,{img_b64}"
+                            },
+                        },
+                        {"type": "text", "text": RDD_PROMPT},
+                    ],
+                }
+            ],
+            "max_tokens": 1200,
+            "temperature": 0,
+        }
+        resp = http_requests.post(
+            GEMMA_ENDPOINT,
+            headers={
+                "Authorization": f"Bearer {token}",
+                "Content-Type": "application/json",
+            },
+            json=payload,
+            timeout=120,
+        )
+        resp.raise_for_status()
+        data = resp.json()
+        raw_text = data["choices"][0]["message"]["content"]
+        parsed = parse_model_json(raw_text)
+        parsed = normalize_bboxes(parsed, img_w, img_h)
+        return {"status": "ok", "result": parsed, "raw": raw_text}
+    except Exception as e:
+        return {"status": "error", "error": str(e), "result": {"defects": []}}
+
+
+def call_gemini(image_id, token, img_data):
+    """Call Gemini 3.1 Pro via Vertex AI generateContent."""
+    try:
+        img_w, img_h = get_jpeg_dimensions(img_data)
+        payload = {
+            "contents": [
+                {
+                    "role": "user",
+                    "parts": [
+                        {
+                            "fileData": {
+                                "mimeType": "image/jpeg",
+                                "fileUri": f"{GCS_IMAGE_BASE}/{image_id}.jpg",
+                            }
+                        },
+                        {"text": RDD_PROMPT},
+                    ],
+                }
+            ],
+            "generationConfig": {"maxOutputTokens": 1200, "temperature": 0},
+        }
+        resp = http_requests.post(
+            GEMINI_ENDPOINT,
+            headers={
+                "Authorization": f"Bearer {token}",
+                "Content-Type": "application/json",
+            },
+            json=payload,
+            timeout=120,
+        )
+        resp.raise_for_status()
+        data = resp.json()
+        raw_text = data["candidates"][0]["content"]["parts"][-1]["text"]
+        parsed = parse_model_json(raw_text)
+        parsed = normalize_bboxes(parsed, img_w, img_h)
+        return {"status": "ok", "result": parsed, "raw": raw_text}
+    except Exception as e:
+        return {"status": "error", "error": str(e), "result": {"defects": []}}
+
+
+def download_hours_image(image_id):
+    """Download shop hours image from GCS and return raw bytes."""
+    url = f"{GCS_PUBLIC_BASE_HOURS}/{image_id}.jpg"
+    resp = http_requests.get(url, timeout=30)
+    resp.raise_for_status()
+    return resp.content
+
+
+def normalize_shop_bboxes(parsed, img_width, img_height):
+    """Normalize bounding boxes for shop detection results.
+
+    Handles per-coordinate detection: if a value exceeds 100 it's in
+    0-1000 scale and gets divided by 10.  Values already in 0-100
+    range are kept as-is.  This avoids the problem where mixed-scale
+    responses (e.g. xmin=490, xmax=100) get uniformly divided.
+    """
+    shops = parsed.get("shops", [])
+
+    for shop in shops:
+        bb = shop.get("bounding_box", {})
+        if not bb:
+            continue
+
+        # Check if any value exceeds pixel range (> 1000)
+        vals = [bb.get(k, 0) for k in ("xmin", "ymin", "xmax", "ymax")]
+        max_val = max(vals) if vals else 0
+
+        for key in ("xmin", "ymin", "xmax", "ymax"):
+            v = bb.get(key, 0)
+            if max_val > 1000 and img_width and img_height:
+                # Pixel coordinates
+                if key in ("xmin", "xmax"):
+                    v = v / img_width * 100
+                else:
+                    v = v / img_height * 100
+            elif v > 100:
+                # 0-1000 scale per coordinate
+                v = v / 10.0
+            bb[key] = round(max(0, min(100, v)), 2)
+
+    return parsed
+
+
+def parse_hours_json(raw_text):
+    """Extract JSON from model response for hours detection."""
+    text = raw_text.strip()
+    match = re.search(r"```(?:json)?\s*([\s\S]*?)```", text)
+    if match:
+        text = match.group(1).strip()
+    try:
+        return json.loads(text)
+    except json.JSONDecodeError:
+        match = re.search(r"\{[\s\S]*\}", text)
+        if match:
+            try:
+                return json.loads(match.group())
+            except json.JSONDecodeError:
+                pass
+        return {"raw_response": raw_text, "shops": []}
+
+
+def call_gemma_hours(image_id, token, img_data):
+    """Call Gemma 3n for shop hours detection."""
+    try:
+        img_b64 = base64.b64encode(img_data).decode()
+        img_w, img_h = get_jpeg_dimensions(img_data)
+        payload = {
+            "model": "google/gemma-3n-E4B-it",
+            "messages": [
+                {
+                    "role": "user",
+                    "content": [
+                        {
+                            "type": "image_url",
+                            "image_url": {
+                                "url": f"data:image/jpeg;base64,{img_b64}"
+                            },
+                        },
+                        {"type": "text", "text": HOURS_PROMPT},
+                    ],
+                }
+            ],
+            "max_tokens": 1500,
+            "temperature": 0,
+        }
+        resp = http_requests.post(
+            GEMMA_ENDPOINT,
+            headers={
+                "Authorization": f"Bearer {token}",
+                "Content-Type": "application/json",
+            },
+            json=payload,
+            timeout=120,
+        )
+        resp.raise_for_status()
+        data = resp.json()
+        raw_text = data["choices"][0]["message"]["content"]
+        parsed = parse_hours_json(raw_text)
+        parsed = normalize_shop_bboxes(parsed, img_w, img_h)
+        return {"status": "ok", "result": parsed, "raw": raw_text}
+    except Exception as e:
+        return {"status": "error", "error": str(e), "result": {"shops": []}}
+
+
+def call_gemini_hours(image_id, token, img_data):
+    """Call Gemini 3.1 Pro for shop hours detection."""
+    try:
+        img_w, img_h = get_jpeg_dimensions(img_data)
+        payload = {
+            "contents": [
+                {
+                    "role": "user",
+                    "parts": [
+                        {
+                            "fileData": {
+                                "mimeType": "image/jpeg",
+                                "fileUri": f"{GCS_HOURS_IMAGE_BASE}/{image_id}.jpg",
+                            }
+                        },
+                        {"text": HOURS_PROMPT},
+                    ],
+                }
+            ],
+            "generationConfig": {"maxOutputTokens": 1500, "temperature": 0},
+        }
+        resp = http_requests.post(
+            GEMINI_ENDPOINT,
+            headers={
+                "Authorization": f"Bearer {token}",
+                "Content-Type": "application/json",
+            },
+            json=payload,
+            timeout=120,
+        )
+        resp.raise_for_status()
+        data = resp.json()
+        raw_text = data["candidates"][0]["content"]["parts"][-1]["text"]
+        parsed = parse_hours_json(raw_text)
+        parsed = normalize_shop_bboxes(parsed, img_w, img_h)
+        return {"status": "ok", "result": parsed, "raw": raw_text}
+    except Exception as e:
+        return {"status": "error", "error": str(e), "result": {"shops": []}}
+
+
+@app.route("/")
+def index():
+    return send_from_directory(".", "index.html")
+
+
+@app.route("/road-damage")
+def road_damage():
+    return send_from_directory(".", "road-damage.html")
+
+
+@app.route("/shop-hours")
+def shop_hours():
+    return send_from_directory(".", "shop-hours.html")
+
+
+@app.route("/analyze", methods=["POST"])
+def analyze():
+    body = request.get_json()
+    image_id = body.get("image_id")
+    if not image_id:
+        return jsonify({"error": "image_id required"}), 400
+
+    token = get_access_token()
+    img_data = download_image(image_id)
+
+    with ThreadPoolExecutor(max_workers=2) as executor:
+        gemma_future = executor.submit(call_gemma, image_id, token, img_data)
+        gemini_future = executor.submit(call_gemini, image_id, token, img_data)
+        gemma_result = gemma_future.result()
+        gemini_result = gemini_future.result()
+
+    return jsonify(
+        {"image_id": image_id, "gemma": gemma_result, "gemini": gemini_result}
+    )
+
+
+@app.route("/analyze-hours", methods=["POST"])
+def analyze_hours():
+    body = request.get_json()
+    image_id = body.get("image_id")
+    if not image_id:
+        return jsonify({"error": "image_id required"}), 400
+
+    token = get_access_token()
+    img_data = download_hours_image(image_id)
+
+    with ThreadPoolExecutor(max_workers=2) as executor:
+        gemma_future = executor.submit(call_gemma_hours, image_id, token, img_data)
+        gemini_future = executor.submit(call_gemini_hours, image_id, token, img_data)
+        gemma_result = gemma_future.result()
+        gemini_result = gemini_future.result()
+
+    return jsonify(
+        {"image_id": image_id, "gemma": gemma_result, "gemini": gemini_result}
+    )
+
+
+@app.route("/analyze-custom", methods=["POST"])
+def analyze_custom():
+    if "image" not in request.files:
+        return jsonify({"error": "image file required"}), 400
+    image_file = request.files["image"]
+    prompt = request.form.get("prompt", "Describe this image.")
+    img_data = image_file.read()
+    img_b64 = base64.b64encode(img_data).decode()
+
+    # Detect mime type
+    mime = image_file.content_type or "image/jpeg"
+    if mime not in ("image/jpeg", "image/png"):
+        mime = "image/jpeg"
+
+    token = get_access_token()
+
+    def call_gemma_custom():
+        try:
+            payload = {
+                "model": "google/gemma-3n-E4B-it",
+                "messages": [
+                    {
+                        "role": "user",
+                        "content": [
+                            {
+                                "type": "image_url",
+                                "image_url": {
+                                    "url": f"data:{mime};base64,{img_b64}"
+                                },
+                            },
+                            {"type": "text", "text": prompt},
+                        ],
+                    }
+                ],
+                "max_tokens": 2000,
+                "temperature": 0,
+            }
+            resp = http_requests.post(
+                GEMMA_ENDPOINT,
+                headers={
+                    "Authorization": f"Bearer {token}",
+                    "Content-Type": "application/json",
+                },
+                json=payload,
+                timeout=120,
+            )
+            resp.raise_for_status()
+            data = resp.json()
+            raw_text = data["choices"][0]["message"]["content"]
+            return {"status": "ok", "raw": raw_text}
+        except Exception as e:
+            return {"status": "error", "error": str(e)}
+
+    def call_gemini_custom():
+        try:
+            payload = {
+                "contents": [
+                    {
+                        "role": "user",
+                        "parts": [
+                            {
+                                "inlineData": {
+                                    "mimeType": mime,
+                                    "data": img_b64,
+                                }
+                            },
+                            {"text": prompt},
+                        ],
+                    }
+                ],
+                "generationConfig": {"maxOutputTokens": 2000, "temperature": 0},
+            }
+            resp = http_requests.post(
+                GEMINI_ENDPOINT,
+                headers={
+                    "Authorization": f"Bearer {token}",
+                    "Content-Type": "application/json",
+                },
+                json=payload,
+                timeout=120,
+            )
+            resp.raise_for_status()
+            data = resp.json()
+            raw_text = data["candidates"][0]["content"]["parts"][-1]["text"]
+            return {"status": "ok", "raw": raw_text}
+        except Exception as e:
+            return {"status": "error", "error": str(e)}
+
+    with ThreadPoolExecutor(max_workers=2) as executor:
+        gemma_future = executor.submit(call_gemma_custom)
+        gemini_future = executor.submit(call_gemini_custom)
+        gemma_result = gemma_future.result()
+        gemini_result = gemini_future.result()
+
+    return jsonify({
+        "gemma": gemma_result,
+        "gemini": gemini_result,
+        "tuned": {"status": "pending"},
+    })
+
+
+if __name__ == "__main__":
+    port = int(os.environ.get("PORT", 8080))
+    app.run(host="0.0.0.0", port=port, debug=False)
