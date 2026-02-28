@@ -26,6 +26,12 @@ GCS_IMAGE_BASE = "gs://dpd-street-detection/images"
 GCS_PUBLIC_BASE = "https://storage.googleapis.com/dpd-street-detection/images"
 GCS_HOURS_IMAGE_BASE = "gs://dpd-street-detection/shop-hours"
 GCS_PUBLIC_BASE_HOURS = "https://storage.googleapis.com/dpd-street-detection/shop-hours"
+GCS_PARKING_IMAGE_BASE = "gs://dpd-street-detection/parking"
+GCS_PUBLIC_BASE_PARKING = "https://storage.googleapis.com/dpd-street-detection/parking"
+GCS_ADDRESSES_IMAGE_BASE = "gs://dpd-street-detection/addresses"
+GCS_PUBLIC_BASE_ADDRESSES = "https://storage.googleapis.com/dpd-street-detection/addresses"
+GCS_TRAFFIC_IMAGE_BASE = "gs://dpd-street-detection/traffic"
+GCS_PUBLIC_BASE_TRAFFIC = "https://storage.googleapis.com/dpd-street-detection/traffic"
 
 HOURS_PROMPT = (
     "You are a shop detection AI analyzing street-level images of European storefronts. "
@@ -61,6 +67,56 @@ RDD_PROMPT = (
     "Values must be between 0 and 100.\n\n"
     "Only include defect types that are actually present (count > 0). "
     "Return ONLY a JSON object (no markdown fences) with a \"defects\" array."
+)
+
+PARKING_PROMPT = (
+    "You are a parking and loading zone detection AI analyzing street-level images "
+    "of European cities. Identify all parking-related features visible in the image.\n\n"
+    "For each feature found, provide:\n"
+    "- type: the type of feature (e.g. \"loading_zone\", \"no_parking_sign\", "
+    "\"parking_meter\", \"restricted_parking\", \"available_spot\", \"disabled_parking\", "
+    "\"time_limited_parking\")\n"
+    "- description: brief description of what you see\n"
+    "- suitability: whether this spot/zone is suitable for a DPD delivery van "
+    "(\"yes\", \"no\", \"maybe\")\n"
+    "- bounding_box: {xmin, ymin, xmax, ymax} as PERCENTAGES of image dimensions "
+    "(0.0 to 100.0) around the feature.\n\n"
+    "Return ONLY a JSON object (no markdown fences) with a \"features\" array. "
+    "Each element must include type, description, suitability, and bounding_box."
+)
+
+ADDRESSES_PROMPT = (
+    "You are an address detection AI analyzing street-level images of European "
+    "residential streets. Identify all house numbers, building names, and address "
+    "markers visible in the image.\n\n"
+    "For each address found, provide:\n"
+    "- number: the house number or building identifier visible (e.g. \"42\", \"12A\", "
+    "\"Building Name\")\n"
+    "- type: the type of marker (e.g. \"house_number\", \"building_name\", "
+    "\"street_sign\", \"address_plaque\")\n"
+    "- visibility: how clearly readable the number/name is (\"clear\", \"partial\", "
+    "\"obscured\")\n"
+    "- bounding_box: {xmin, ymin, xmax, ymax} as PERCENTAGES of image dimensions "
+    "(0.0 to 100.0) around the address marker.\n\n"
+    "Return ONLY a JSON object (no markdown fences) with an \"addresses\" array. "
+    "Each element must include number, type, visibility, and bounding_box."
+)
+
+TRAFFIC_PROMPT = (
+    "You are a traffic restriction detection AI analyzing street-level images of "
+    "European cities. Identify all traffic signs, restrictions, and regulations "
+    "visible in the image that could affect a delivery van.\n\n"
+    "For each restriction found, provide:\n"
+    "- type: the type of restriction (e.g. \"weight_limit\", \"height_limit\", "
+    "\"no_entry\", \"one_way\", \"pedestrian_zone\", \"ZTL\", \"time_restriction\", "
+    "\"speed_limit\", \"no_trucks\", \"low_emission_zone\")\n"
+    "- description: brief description of what the sign/restriction indicates\n"
+    "- impact: impact on a standard DPD delivery van (\"high\", \"medium\", \"low\", "
+    "\"none\")\n"
+    "- bounding_box: {xmin, ymin, xmax, ymax} as PERCENTAGES of image dimensions "
+    "(0.0 to 100.0) around the sign/restriction.\n\n"
+    "Return ONLY a JSON object (no markdown fences) with a \"restrictions\" array. "
+    "Each element must include type, description, impact, and bounding_box."
 )
 
 
@@ -403,6 +459,227 @@ def call_gemini_hours(image_id, token, img_data, prompt=None):
         return {"status": "error", "error": str(e), "result": {"shops": []}}
 
 
+def download_parking_image(image_id):
+    """Download parking image from GCS and return raw bytes."""
+    url = f"{GCS_PUBLIC_BASE_PARKING}/{image_id}.jpg"
+    resp = http_requests.get(url, timeout=30)
+    resp.raise_for_status()
+    return resp.content
+
+
+def download_addresses_image(image_id):
+    """Download addresses image from GCS and return raw bytes."""
+    url = f"{GCS_PUBLIC_BASE_ADDRESSES}/{image_id}.jpg"
+    resp = http_requests.get(url, timeout=30)
+    resp.raise_for_status()
+    return resp.content
+
+
+def download_traffic_image(image_id):
+    """Download traffic image from GCS and return raw bytes."""
+    url = f"{GCS_PUBLIC_BASE_TRAFFIC}/{image_id}.jpg"
+    resp = http_requests.get(url, timeout=30)
+    resp.raise_for_status()
+    return resp.content
+
+
+def normalize_generic_bboxes(parsed, img_width, img_height, list_key, box_key="bounding_box"):
+    """Normalize bounding boxes for generic detection results (parking, addresses, traffic).
+
+    Works with responses that have a single bounding_box per item (not an array).
+    """
+    items = parsed.get(list_key, [])
+
+    for item in items:
+        bb = item.get(box_key, {})
+        if not bb:
+            continue
+
+        vals = [bb.get(k, 0) for k in ("xmin", "ymin", "xmax", "ymax")]
+        max_val = max(vals) if vals else 0
+
+        for key in ("xmin", "ymin", "xmax", "ymax"):
+            v = bb.get(key, 0)
+            if max_val > 1000 and img_width and img_height:
+                if key in ("xmin", "xmax"):
+                    v = v / img_width * 100
+                else:
+                    v = v / img_height * 100
+            elif v > 100:
+                v = v / 10.0
+            bb[key] = round(max(0, min(100, v)), 2)
+
+    return parsed
+
+
+def parse_generic_json(raw_text, fallback_key):
+    """Extract JSON from model response for generic detection."""
+    text = raw_text.strip()
+    match = re.search(r"```(?:json)?\s*([\s\S]*?)```", text)
+    if match:
+        text = match.group(1).strip()
+    try:
+        return json.loads(text)
+    except json.JSONDecodeError:
+        match = re.search(r"\{[\s\S]*\}", text)
+        if match:
+            try:
+                return json.loads(match.group())
+            except json.JSONDecodeError:
+                pass
+        return {"raw_response": raw_text, fallback_key: []}
+
+
+def call_gemma_parking(image_id, token, img_data, prompt=None):
+    """Call Gemma 3n for parking detection."""
+    try:
+        img_b64 = base64.b64encode(img_data).decode()
+        img_w, img_h = get_jpeg_dimensions(img_data)
+        payload = {
+            "model": "google/gemma-3n-E4B-it",
+            "messages": [{"role": "user", "content": [
+                {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{img_b64}"}},
+                {"type": "text", "text": prompt or PARKING_PROMPT},
+            ]}],
+            "max_tokens": 1500, "temperature": 0,
+        }
+        resp = http_requests.post(GEMMA_ENDPOINT, headers={
+            "Authorization": f"Bearer {token}", "Content-Type": "application/json",
+        }, json=payload, timeout=120)
+        resp.raise_for_status()
+        data = resp.json()
+        raw_text = data["choices"][0]["message"]["content"]
+        parsed = parse_generic_json(raw_text, "features")
+        parsed = normalize_generic_bboxes(parsed, img_w, img_h, "features")
+        return {"status": "ok", "result": parsed, "raw": raw_text}
+    except Exception as e:
+        return {"status": "error", "error": str(e), "result": {"features": []}}
+
+
+def call_gemini_parking(image_id, token, img_data, prompt=None):
+    """Call Gemini 3.1 Pro for parking detection."""
+    try:
+        img_w, img_h = get_jpeg_dimensions(img_data)
+        payload = {
+            "contents": [{"role": "user", "parts": [
+                {"fileData": {"mimeType": "image/jpeg", "fileUri": f"{GCS_PARKING_IMAGE_BASE}/{image_id}.jpg"}},
+                {"text": prompt or PARKING_PROMPT},
+            ]}],
+            "generationConfig": {"maxOutputTokens": 1500, "temperature": 0},
+        }
+        resp = http_requests.post(GEMINI_ENDPOINT, headers={
+            "Authorization": f"Bearer {token}", "Content-Type": "application/json",
+        }, json=payload, timeout=120)
+        resp.raise_for_status()
+        data = resp.json()
+        raw_text = data["candidates"][0]["content"]["parts"][-1]["text"]
+        parsed = parse_generic_json(raw_text, "features")
+        parsed = normalize_generic_bboxes(parsed, img_w, img_h, "features")
+        return {"status": "ok", "result": parsed, "raw": raw_text}
+    except Exception as e:
+        return {"status": "error", "error": str(e), "result": {"features": []}}
+
+
+def call_gemma_addresses(image_id, token, img_data, prompt=None):
+    """Call Gemma 3n for address detection."""
+    try:
+        img_b64 = base64.b64encode(img_data).decode()
+        img_w, img_h = get_jpeg_dimensions(img_data)
+        payload = {
+            "model": "google/gemma-3n-E4B-it",
+            "messages": [{"role": "user", "content": [
+                {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{img_b64}"}},
+                {"type": "text", "text": prompt or ADDRESSES_PROMPT},
+            ]}],
+            "max_tokens": 1500, "temperature": 0,
+        }
+        resp = http_requests.post(GEMMA_ENDPOINT, headers={
+            "Authorization": f"Bearer {token}", "Content-Type": "application/json",
+        }, json=payload, timeout=120)
+        resp.raise_for_status()
+        data = resp.json()
+        raw_text = data["choices"][0]["message"]["content"]
+        parsed = parse_generic_json(raw_text, "addresses")
+        parsed = normalize_generic_bboxes(parsed, img_w, img_h, "addresses")
+        return {"status": "ok", "result": parsed, "raw": raw_text}
+    except Exception as e:
+        return {"status": "error", "error": str(e), "result": {"addresses": []}}
+
+
+def call_gemini_addresses(image_id, token, img_data, prompt=None):
+    """Call Gemini 3.1 Pro for address detection."""
+    try:
+        img_w, img_h = get_jpeg_dimensions(img_data)
+        payload = {
+            "contents": [{"role": "user", "parts": [
+                {"fileData": {"mimeType": "image/jpeg", "fileUri": f"{GCS_ADDRESSES_IMAGE_BASE}/{image_id}.jpg"}},
+                {"text": prompt or ADDRESSES_PROMPT},
+            ]}],
+            "generationConfig": {"maxOutputTokens": 1500, "temperature": 0},
+        }
+        resp = http_requests.post(GEMINI_ENDPOINT, headers={
+            "Authorization": f"Bearer {token}", "Content-Type": "application/json",
+        }, json=payload, timeout=120)
+        resp.raise_for_status()
+        data = resp.json()
+        raw_text = data["candidates"][0]["content"]["parts"][-1]["text"]
+        parsed = parse_generic_json(raw_text, "addresses")
+        parsed = normalize_generic_bboxes(parsed, img_w, img_h, "addresses")
+        return {"status": "ok", "result": parsed, "raw": raw_text}
+    except Exception as e:
+        return {"status": "error", "error": str(e), "result": {"addresses": []}}
+
+
+def call_gemma_traffic(image_id, token, img_data, prompt=None):
+    """Call Gemma 3n for traffic restriction detection."""
+    try:
+        img_b64 = base64.b64encode(img_data).decode()
+        img_w, img_h = get_jpeg_dimensions(img_data)
+        payload = {
+            "model": "google/gemma-3n-E4B-it",
+            "messages": [{"role": "user", "content": [
+                {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{img_b64}"}},
+                {"type": "text", "text": prompt or TRAFFIC_PROMPT},
+            ]}],
+            "max_tokens": 1500, "temperature": 0,
+        }
+        resp = http_requests.post(GEMMA_ENDPOINT, headers={
+            "Authorization": f"Bearer {token}", "Content-Type": "application/json",
+        }, json=payload, timeout=120)
+        resp.raise_for_status()
+        data = resp.json()
+        raw_text = data["choices"][0]["message"]["content"]
+        parsed = parse_generic_json(raw_text, "restrictions")
+        parsed = normalize_generic_bboxes(parsed, img_w, img_h, "restrictions")
+        return {"status": "ok", "result": parsed, "raw": raw_text}
+    except Exception as e:
+        return {"status": "error", "error": str(e), "result": {"restrictions": []}}
+
+
+def call_gemini_traffic(image_id, token, img_data, prompt=None):
+    """Call Gemini 3.1 Pro for traffic restriction detection."""
+    try:
+        img_w, img_h = get_jpeg_dimensions(img_data)
+        payload = {
+            "contents": [{"role": "user", "parts": [
+                {"fileData": {"mimeType": "image/jpeg", "fileUri": f"{GCS_TRAFFIC_IMAGE_BASE}/{image_id}.jpg"}},
+                {"text": prompt or TRAFFIC_PROMPT},
+            ]}],
+            "generationConfig": {"maxOutputTokens": 1500, "temperature": 0},
+        }
+        resp = http_requests.post(GEMINI_ENDPOINT, headers={
+            "Authorization": f"Bearer {token}", "Content-Type": "application/json",
+        }, json=payload, timeout=120)
+        resp.raise_for_status()
+        data = resp.json()
+        raw_text = data["candidates"][0]["content"]["parts"][-1]["text"]
+        parsed = parse_generic_json(raw_text, "restrictions")
+        parsed = normalize_generic_bboxes(parsed, img_w, img_h, "restrictions")
+        return {"status": "ok", "result": parsed, "raw": raw_text}
+    except Exception as e:
+        return {"status": "error", "error": str(e), "result": {"restrictions": []}}
+
+
 @app.route("/")
 def index():
     return send_from_directory(".", "index.html")
@@ -416,6 +693,21 @@ def road_damage():
 @app.route("/shop-hours")
 def shop_hours():
     return send_from_directory(".", "shop-hours.html")
+
+
+@app.route("/parking")
+def parking():
+    return send_from_directory(".", "parking.html")
+
+
+@app.route("/addresses")
+def addresses():
+    return send_from_directory(".", "addresses.html")
+
+
+@app.route("/traffic")
+def traffic():
+    return send_from_directory(".", "traffic.html")
 
 
 @app.route("/analyze", methods=["POST"])
@@ -454,6 +746,72 @@ def analyze_hours():
     with ThreadPoolExecutor(max_workers=2) as executor:
         gemma_future = executor.submit(call_gemma_hours, image_id, token, img_data, prompt)
         gemini_future = executor.submit(call_gemini_hours, image_id, token, img_data, prompt)
+        gemma_result = gemma_future.result()
+        gemini_result = gemini_future.result()
+
+    return jsonify(
+        {"image_id": image_id, "gemma": gemma_result, "gemini": gemini_result}
+    )
+
+
+@app.route("/analyze-parking", methods=["POST"])
+def analyze_parking():
+    body = request.get_json()
+    image_id = body.get("image_id")
+    prompt = body.get("prompt")
+    if not image_id:
+        return jsonify({"error": "image_id required"}), 400
+
+    token = get_access_token()
+    img_data = download_parking_image(image_id)
+
+    with ThreadPoolExecutor(max_workers=2) as executor:
+        gemma_future = executor.submit(call_gemma_parking, image_id, token, img_data, prompt)
+        gemini_future = executor.submit(call_gemini_parking, image_id, token, img_data, prompt)
+        gemma_result = gemma_future.result()
+        gemini_result = gemini_future.result()
+
+    return jsonify(
+        {"image_id": image_id, "gemma": gemma_result, "gemini": gemini_result}
+    )
+
+
+@app.route("/analyze-addresses", methods=["POST"])
+def analyze_addresses():
+    body = request.get_json()
+    image_id = body.get("image_id")
+    prompt = body.get("prompt")
+    if not image_id:
+        return jsonify({"error": "image_id required"}), 400
+
+    token = get_access_token()
+    img_data = download_addresses_image(image_id)
+
+    with ThreadPoolExecutor(max_workers=2) as executor:
+        gemma_future = executor.submit(call_gemma_addresses, image_id, token, img_data, prompt)
+        gemini_future = executor.submit(call_gemini_addresses, image_id, token, img_data, prompt)
+        gemma_result = gemma_future.result()
+        gemini_result = gemini_future.result()
+
+    return jsonify(
+        {"image_id": image_id, "gemma": gemma_result, "gemini": gemini_result}
+    )
+
+
+@app.route("/analyze-traffic", methods=["POST"])
+def analyze_traffic():
+    body = request.get_json()
+    image_id = body.get("image_id")
+    prompt = body.get("prompt")
+    if not image_id:
+        return jsonify({"error": "image_id required"}), 400
+
+    token = get_access_token()
+    img_data = download_traffic_image(image_id)
+
+    with ThreadPoolExecutor(max_workers=2) as executor:
+        gemma_future = executor.submit(call_gemma_traffic, image_id, token, img_data, prompt)
+        gemini_future = executor.submit(call_gemini_traffic, image_id, token, img_data, prompt)
         gemma_result = gemma_future.result()
         gemini_result = gemini_future.result()
 

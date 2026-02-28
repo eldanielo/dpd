@@ -15,7 +15,7 @@
     .main { padding: 24px 40px; max-width: 1400px; margin: 0 auto; }
 
     /* Nav Cards */
-    .nav-cards { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 40px; }
+    .nav-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 20px; margin-bottom: 40px; }
     .nav-card {
       background: #161b22; border: 1px solid #30363d; border-radius: 10px;
       padding: 24px; text-decoration: none; color: inherit; transition: border-color 0.15s, transform 0.1s;
@@ -30,6 +30,9 @@
     }
     .tag-road { background: #f8514930; color: #f85149; border: 1px solid #f8514960; }
     .tag-shop { background: #1f6feb30; color: #58a6ff; border: 1px solid #1f6feb60; }
+    .tag-parking { background: #a371f730; color: #d2a8ff; border: 1px solid #a371f760; }
+    .tag-addr { background: #3fb95030; color: #3fb950; border: 1px solid #3fb95060; }
+    .tag-traffic { background: #d29a2830; color: #d29922; border: 1px solid #d29a2860; }
 
     /* Custom Upload Section */
     .upload-section {
@@ -149,6 +152,21 @@
       <h2>Shop Opening Hours Detection</h2>
       <p>Identify shops, restaurants, and businesses from street-level images. Extract shop names and opening hours from signage across European cities.</p>
       <span class="card-tag tag-shop">6 European city images</span>
+    </a>
+    <a class="nav-card" href="/parking">
+      <h2>Parking & Loading Zones</h2>
+      <p>Detect loading zones, parking restrictions, and available spots from street-level images. Assess suitability for DPD delivery vans.</p>
+      <span class="card-tag tag-parking">6 European city images</span>
+    </a>
+    <a class="nav-card" href="/addresses">
+      <h2>Address & House Numbers</h2>
+      <p>Read house numbers, building names, and address markers from street-level images. Evaluate visibility and readability for delivery drivers.</p>
+      <span class="card-tag tag-addr">6 European city images</span>
+    </a>
+    <a class="nav-card" href="/traffic">
+      <h2>Traffic Signs & Restrictions</h2>
+      <p>Detect weight/height limits, no-entry signs, pedestrian zones, ZTL areas, and time restrictions that impact delivery van routing.</p>
+      <span class="card-tag tag-traffic">6 European city images</span>
     </a>
   </div>
 

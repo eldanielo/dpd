@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Shop Opening Hours Detection - Model Comparison</title>
+  <title>Address & House Number Detection - Model Comparison</title>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body { font-family: 'Segoe UI', system-ui, sans-serif; background: #0f1117; color: #e1e4e8; }
@@ -27,7 +27,7 @@
     .image-card-header { padding: 16px 20px; border-bottom: 1px solid #30363d; display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
     .image-card-header h2 { font-size: 16px; font-weight: 600; margin-right: auto; }
     .image-card-header .badge { font-size: 12px; padding: 3px 10px; border-radius: 12px; font-weight: 500; }
-    .badge-shops { background: #1f6feb30; color: #58a6ff; border: 1px solid #1f6feb60; }
+    .badge-addr { background: #3fb95030; color: #3fb950; border: 1px solid #3fb95060; }
 
     .analyze-btn {
       background: #238636; color: #fff; border: 1px solid #2ea04366; border-radius: 6px;
@@ -65,44 +65,40 @@
 
     .bbox { position: absolute; border: 2px solid; border-radius: 2px; pointer-events: none; }
     .bbox-label { position: absolute; top: -16px; left: -1px; font-size: 10px; font-weight: 700; padding: 1px 4px; border-radius: 2px; font-family: monospace; white-space: nowrap; }
-    .bbox-shop { border-color: #3fb950; }
-    .bbox-shop .bbox-label { background: #3fb950; color: #0d1117; }
 
-    .shop-colors-0 { border-color: #58a6ff; }
-    .shop-colors-0 .bbox-label { background: #58a6ff; color: #0d1117; }
-    .shop-colors-1 { border-color: #d2a8ff; }
-    .shop-colors-1 .bbox-label { background: #d2a8ff; color: #0d1117; }
-    .shop-colors-2 { border-color: #f0883e; }
-    .shop-colors-2 .bbox-label { background: #f0883e; color: #0d1117; }
-    .shop-colors-3 { border-color: #f85149; }
-    .shop-colors-3 .bbox-label { background: #f85149; color: #0d1117; }
-    .shop-colors-4 { border-color: #3fb950; }
-    .shop-colors-4 .bbox-label { background: #3fb950; color: #0d1117; }
-    .shop-colors-5 { border-color: #d29922; }
-    .shop-colors-5 .bbox-label { background: #d29922; color: #0d1117; }
+    .addr-colors-0 { border-color: #58a6ff; }
+    .addr-colors-0 .bbox-label { background: #58a6ff; color: #0d1117; }
+    .addr-colors-1 { border-color: #d2a8ff; }
+    .addr-colors-1 .bbox-label { background: #d2a8ff; color: #0d1117; }
+    .addr-colors-2 { border-color: #f0883e; }
+    .addr-colors-2 .bbox-label { background: #f0883e; color: #0d1117; }
+    .addr-colors-3 { border-color: #f85149; }
+    .addr-colors-3 .bbox-label { background: #f85149; color: #0d1117; }
+    .addr-colors-4 { border-color: #3fb950; }
+    .addr-colors-4 .bbox-label { background: #3fb950; color: #0d1117; }
+    .addr-colors-5 { border-color: #d29922; }
+    .addr-colors-5 .bbox-label { background: #d29922; color: #0d1117; }
 
     .ground-truth { background: #0d1117; border: 1px solid #30363d; border-radius: 6px; padding: 12px; margin-top: 10px; }
     .ground-truth h4 { font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px; color: #8b949e; margin-bottom: 8px; }
 
-    .shop-row { padding: 6px 0; font-size: 13px; border-bottom: 1px solid #30363d22; }
-    .shop-row:last-child { border-bottom: none; }
-    .shop-name { font-weight: 600; color: #e1e4e8; }
-    .shop-hours { color: #8b949e; font-size: 12px; margin-top: 2px; font-family: monospace; }
-    .shop-hours.has-hours { color: #3fb950; }
-    .shop-status {
+    .addr-row { padding: 6px 0; font-size: 13px; border-bottom: 1px solid #30363d22; }
+    .addr-row:last-child { border-bottom: none; }
+    .addr-num { font-weight: 600; color: #e1e4e8; font-family: monospace; font-size: 15px; }
+    .addr-type { color: #8b949e; font-size: 12px; margin-top: 2px; }
+    .addr-vis {
       display: inline-block; font-size: 10px; padding: 1px 6px; border-radius: 3px;
       font-weight: 600; margin-left: 8px; vertical-align: middle;
     }
-    .shop-status.status-open { background: #23883040; color: #3fb950; border: 1px solid #23883060; }
-    .shop-status.status-closed { background: #da363330; color: #f85149; border: 1px solid #da363360; }
-    .shop-status.status-unknown { background: #30363d; color: #8b949e; border: 1px solid #30363d; }
+    .addr-vis.vis-clear { background: #23883040; color: #3fb950; border: 1px solid #23883060; }
+    .addr-vis.vis-partial { background: #d29a2840; color: #d29922; border: 1px solid #d29a2860; }
+    .addr-vis.vis-obscured { background: #da363330; color: #f85149; border: 1px solid #da363360; }
 
     .detection-summary { background: #0d1117; border: 1px solid #30363d; border-radius: 6px; padding: 12px; margin-top: 10px; }
     .detection-summary h4 { font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px; color: #8b949e; margin-bottom: 8px; }
 
     .no-results { color: #484f58; font-style: italic; font-size: 13px; padding: 8px 0; }
 
-    /* Lightbox */
     .lightbox { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: #000000ee; z-index: 1000; justify-content: center; align-items: center; cursor: zoom-out; }
     .lightbox.active { display: flex; }
     .lightbox-inner { position: relative; max-width: 95vw; max-height: 95vh; }
@@ -123,9 +119,9 @@
 <header>
   <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;">
     <div>
-      <h1>Shop Opening Hours Detection - Model Comparison</h1>
-      <p>Gemma 3n E4B-IT | Gemini 3.1 Pro &mdash; European Storefront Analysis | DPD/Geopost Street Analytics</p>
-      <div class="nav-links"><a href="/">&larr; Home</a> &nbsp;|&nbsp; <a href="/road-damage">Road Damage</a> &nbsp;|&nbsp; <a href="/parking">Parking</a> &nbsp;|&nbsp; <a href="/addresses">Addresses</a> &nbsp;|&nbsp; <a href="/traffic">Traffic</a></div>
+      <h1>Address & House Number Detection - Model Comparison</h1>
+      <p>Gemma 3n E4B-IT | Gemini 3.1 Pro &mdash; European Address Reading | DPD/Geopost Street Analytics</p>
+      <div class="nav-links"><a href="/">&larr; Home</a> &nbsp;|&nbsp; <a href="/road-damage">Road Damage</a> &nbsp;|&nbsp; <a href="/shop-hours">Shop Hours</a> &nbsp;|&nbsp; <a href="/parking">Parking</a> &nbsp;|&nbsp; <a href="/traffic">Traffic</a></div>
     </div>
     <button class="analyze-btn" id="analyze-all-btn" onclick="analyzeAll()">
       <span class="spinner"></span>
@@ -137,15 +133,15 @@
 
 <div class="prompt-section">
   <h3>Prompt (same for all models)</h3>
-  <textarea class="prompt-box" id="prompt-editor" rows="10">You are a shop detection AI analyzing street-level images of European storefronts. Identify every shop, restaurant, cafe, or business visible in the image.
+  <textarea class="prompt-box" id="prompt-editor" rows="10">You are an address detection AI analyzing street-level images of European residential streets. Identify all house numbers, building names, and address markers visible in the image.
 
-For each business found, provide:
-- shop_name: the name visible on the signage
-- opening_hours: any opening hours visible on the door, wall, or signage (e.g. "Mon-Fri 9:00-18:00"). Use "Not visible" if no hours can be read.
-- status: whether the shop appears to be "open", "closed", or "unknown" based on visual cues (lights on, door open, OPEN/CLOSED sign, customers inside, shutters down, etc.)
+For each address found, provide:
+- number: the house number or building identifier visible (e.g. "42", "12A", "Building Name")
+- type: the type of marker (e.g. "house_number", "building_name", "street_sign", "address_plaque")
+- visibility: how clearly readable the number/name is ("clear", "partial", "obscured")
 - bounding_box: {xmin, ymin, xmax, ymax} as percentages (0-100) of image dimensions
 
-Return ONLY a JSON object with a "shops" array. Each element must include shop_name, opening_hours, status, and bounding_box.</textarea>
+Return ONLY a JSON object with an "addresses" array. Each element must include number, type, visibility, and bounding_box.</textarea>
 </div>
 
 <!-- Lightbox -->
@@ -157,35 +153,32 @@ Return ONLY a JSON object with a "shops" array. Each element must include shop_n
 <div class="cards-container" id="cards-container"></div>
 
 <script>
-const IMAGE_BASE = 'https://storage.googleapis.com/dpd-street-detection/shop-hours';
+const IMAGE_BASE = 'https://storage.googleapis.com/dpd-street-detection/addresses';
 
-const shopColors = ['#58a6ff', '#d2a8ff', '#f0883e', '#f85149', '#3fb950', '#d29922'];
+const addrColors = ['#58a6ff', '#d2a8ff', '#f0883e', '#f85149', '#3fb950', '#d29922'];
 
 const imageCards = [
-  { id: "paris_montorgueil", location: "Paris, Rue Montorgueil", gtShops: [
-    { name: "Newsstand / Tabac", hours: "Not visible" }
+  { id: "paris_marais", location: "Paris, Le Marais", gtAddresses: [
+    { number: "Various", type: "Residential house numbers" }
   ]},
-  { id: "munich_viktualienmarkt", location: "Munich, Viktualienmarkt", gtShops: [
-    { name: "Lebende Forellen (fish stand)", hours: "Not visible" },
-    { name: "Restaurant / cafe (left side)", hours: "Not visible" }
+  { id: "london_kensington", location: "London, Kensington", gtAddresses: [
+    { number: "Various", type: "Victorian house numbers" }
   ]},
-  { id: "berlin_bergmannstrasse", location: "Berlin, Bergmannstrasse", gtShops: [
-    { name: "Restaurant / cafe with outdoor seating", hours: "Not visible" }
+  { id: "berlin_prenzlauer", location: "Berlin, Prenzlauer Berg", gtAddresses: [
+    { number: "Various", type: "Apartment building numbers" }
   ]},
-  { id: "lisbon_shopping", location: "Lisbon, pedestrian street", gtShops: [
-    { name: "O Porto (restaurant)", hours: "Not visible" },
-    { name: "Wine / bottle shop", hours: "Not visible" }
+  { id: "amsterdam_jordaan", location: "Amsterdam, Jordaan", gtAddresses: [
+    { number: "Various", type: "Canal house numbers" }
   ]},
-  { id: "amsterdam_9streets", location: "Amsterdam, De 9 Straatjes", gtShops: [
-    { name: "Jannetje", hours: "Not visible" },
-    { name: "V&S Cheese", hours: "Not visible" }
+  { id: "vienna_innere", location: "Vienna, Innere Stadt", gtAddresses: [
+    { number: "Various", type: "Historic building numbers" }
   ]},
-  { id: "brussels_neuve", location: "Brussels", gtShops: [
-    { name: "Porto Cruz", hours: "OPEN sign visible" }
+  { id: "lisbon_alfama", location: "Lisbon, Alfama", gtAddresses: [
+    { number: "Various", type: "Tiled house number plaques" }
   ]}
 ];
 
-function drawShopBoxes(container, boxes) {
+function drawAddrBoxes(container, boxes) {
   if (!container) return;
   container.querySelectorAll('.bbox').forEach(b => b.remove());
   boxes.forEach((b, i) => {
@@ -196,14 +189,14 @@ function drawShopBoxes(container, boxes) {
     const w = xmax - xmin;
     const h = ymax - ymin;
     if (w <= 0 || h <= 0) return;
-    const colorIdx = i % shopColors.length;
+    const colorIdx = i % addrColors.length;
     const div = document.createElement('div');
-    div.className = `bbox shop-colors-${colorIdx}`;
+    div.className = `bbox addr-colors-${colorIdx}`;
     div.style.left = xmin + '%';
     div.style.top = ymin + '%';
     div.style.width = w + '%';
     div.style.height = h + '%';
-    const label = b.name || `Shop ${i + 1}`;
+    const label = b.name || `#${i + 1}`;
     div.innerHTML = `<span class="bbox-label">${label}</span>`;
     container.appendChild(div);
   });
@@ -211,12 +204,12 @@ function drawShopBoxes(container, boxes) {
 
 function buildCard(card) {
   const imgSrc = `${IMAGE_BASE}/${card.id}.jpg`;
-  const shopCount = card.gtShops.length;
+  const addrCount = card.gtAddresses.length;
 
-  const gtRows = card.gtShops.map(s =>
-    `<div class="shop-row">
-      <div class="shop-name">${s.name}</div>
-      <div class="shop-hours ${s.hours !== 'Not visible' ? 'has-hours' : ''}">${s.hours}</div>
+  const gtRows = card.gtAddresses.map(a =>
+    `<div class="addr-row">
+      <div class="addr-num">${a.number}</div>
+      <div class="addr-type">${a.type}</div>
     </div>`
   ).join('');
 
@@ -224,21 +217,19 @@ function buildCard(card) {
   <div class="image-card" id="card-${card.id}">
     <div class="image-card-header">
       <h2>${card.location}</h2>
-      <span class="badge badge-shops">${shopCount} shop${shopCount !== 1 ? 's' : ''} annotated</span>
+      <span class="badge badge-addr">Address reading</span>
     </div>
     <div class="three-col image-previews">
-      <!-- Ground Truth column -->
       <div>
         <div class="col-header"><span class="dot dot-gt"></span> Ground Truth</div>
         <div class="img-container" id="gt-container-${card.id}" onclick="openLightbox('${card.id}', 'gt')">
           <img src="${imgSrc}" alt="${card.id} GT" id="gt-img-${card.id}">
         </div>
         <div class="ground-truth">
-          <h4>Annotated Shops</h4>
+          <h4>Expected Addresses</h4>
           ${gtRows}
         </div>
       </div>
-      <!-- Gemma column -->
       <div>
         <div class="col-header"><span class="dot dot-gemma"></span> Gemma 3n E4B-IT</div>
         <div class="img-container" id="gemma-container-${card.id}" onclick="openLightbox('${card.id}', 'gemma')">
@@ -246,12 +237,11 @@ function buildCard(card) {
         </div>
         <div id="gemma-results-${card.id}">
           <div class="detection-summary" style="opacity:0.5;">
-            <h4>Detected Shops</h4>
+            <h4>Detected Addresses</h4>
             <div class="no-results">Click "Analyze" to run</div>
           </div>
         </div>
       </div>
-      <!-- Gemini column -->
       <div>
         <div class="col-header"><span class="dot dot-gemini"></span> Gemini 3.1 Pro</div>
         <div class="img-container" id="gemini-container-${card.id}" onclick="openLightbox('${card.id}', 'gemini')">
@@ -259,7 +249,7 @@ function buildCard(card) {
         </div>
         <div id="gemini-results-${card.id}">
           <div class="detection-summary" style="opacity:0.5;">
-            <h4>Detected Shops</h4>
+            <h4>Detected Addresses</h4>
             <div class="no-results">Click "Analyze" to run</div>
           </div>
         </div>
@@ -270,69 +260,68 @@ function buildCard(card) {
 
 const modelBoxes = {};
 
-function extractShopBoxes(result) {
+function extractAddrBoxes(result) {
   const boxes = [];
-  const shops = result.shops || [];
-  shops.forEach(s => {
-    const bb = s.bounding_box || {};
+  const addresses = result.addresses || [];
+  addresses.forEach(a => {
+    const bb = a.bounding_box || {};
     if (bb.xmin !== undefined) {
-      boxes.push({ name: s.shop_name || 'Unknown', xmin: bb.xmin, ymin: bb.ymin, xmax: bb.xmax, ymax: bb.ymax });
+      boxes.push({ name: a.number || '?', xmin: bb.xmin, ymin: bb.ymin, xmax: bb.xmax, ymax: bb.ymax });
     }
   });
   return boxes;
 }
 
-function renderShopResults(imageId, modelResult, containerId) {
+function renderAddrResults(imageId, modelResult, containerId) {
   const el = document.getElementById(containerId);
   if (!el) return;
 
   if (modelResult.status === 'error') {
-    el.innerHTML = `<div class="detection-summary"><h4>Detected Shops</h4>
-      <div class="shop-row" style="color:#f85149;">Error: ${modelResult.error}</div></div>`;
+    el.innerHTML = `<div class="detection-summary"><h4>Detected Addresses</h4>
+      <div class="addr-row" style="color:#f85149;">Error: ${modelResult.error}</div></div>`;
     return;
   }
 
   const parsed = modelResult.result || {};
-  const shops = parsed.shops || [];
+  const addresses = parsed.addresses || [];
 
   let rows = '';
-  if (shops.length === 0) {
-    rows = '<div class="no-results">No shops detected</div>';
+  if (addresses.length === 0) {
+    rows = '<div class="no-results">No addresses detected</div>';
   } else {
-    rows = shops.map((s, i) => {
-      const colorIdx = i % shopColors.length;
-      const hasHours = s.opening_hours && s.opening_hours !== 'Not visible' && s.opening_hours !== 'N/A' && s.opening_hours !== 'Unknown';
-      const status = (s.status || 'unknown').toLowerCase();
-      const statusCls = status === 'open' ? 'status-open' : status === 'closed' ? 'status-closed' : 'status-unknown';
-      const statusLabel = status.charAt(0).toUpperCase() + status.slice(1);
-      return `<div class="shop-row">
-        <div class="shop-name"><span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:${shopColors[colorIdx]};margin-right:6px;vertical-align:middle;"></span>${s.shop_name || 'Unknown'}<span class="shop-status ${statusCls}">${statusLabel}</span></div>
-        <div class="shop-hours ${hasHours ? 'has-hours' : ''}">${s.opening_hours || 'Not visible'}</div>
+    rows = addresses.map((a, i) => {
+      const colorIdx = i % addrColors.length;
+      const vis = (a.visibility || 'clear').toLowerCase();
+      const visCls = vis === 'clear' ? 'vis-clear' : vis === 'partial' ? 'vis-partial' : 'vis-obscured';
+      const visLabel = vis.charAt(0).toUpperCase() + vis.slice(1);
+      return `<div class="addr-row">
+        <div class="addr-num"><span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:${addrColors[colorIdx]};margin-right:6px;vertical-align:middle;"></span>${a.number || '?'}<span class="addr-vis ${visCls}">${visLabel}</span></div>
+        <div class="addr-type">${a.type || 'house_number'}</div>
       </div>`;
     }).join('');
   }
 
   el.innerHTML = `<div class="detection-summary">
-    <h4>Detected Shops <span style="font-size:11px;color:#8b949e;font-weight:400;">(${shops.length} found)</span></h4>
+    <h4>Detected Addresses <span style="font-size:11px;color:#8b949e;font-weight:400;">(${addresses.length} found)</span></h4>
     ${rows}
   </div>`;
 }
 
 function updateModelColumn(imageId, modelName, modelData) {
-  const boxes = modelData.status === 'ok' ? extractShopBoxes(modelData.result) : [];
+  const boxes = modelData.status === 'ok' ? extractAddrBoxes(modelData.result) : [];
   modelBoxes[`${modelName}-${imageId}`] = boxes;
-  drawShopBoxes(document.getElementById(`${modelName}-container-${imageId}`), boxes);
-  renderShopResults(imageId, modelData, `${modelName}-results-${imageId}`);
+  drawAddrBoxes(document.getElementById(`${modelName}-container-${imageId}`), boxes);
+  renderAddrResults(imageId, modelData, `${modelName}-results-${imageId}`);
 }
 
 async function analyzeImage(imageId) {
   ['gemma', 'gemini'].forEach(m => {
     document.getElementById(`${m}-results-${imageId}`).innerHTML =
-      `<div class="detection-summary"><h4>Detected Shops</h4><div class="shop-row" style="color:#8b949e;">Running...</div></div>`;
+      `<div class="detection-summary"><h4>Detected Addresses</h4><div class="addr-row" style="color:#8b949e;">Running...</div></div>`;
   });
 
   try {
-    const resp = await fetch('/analyze-hours', {
+    const resp = await fetch('/analyze-addresses', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ image_id: imageId, prompt: document.getElementById('prompt-editor').value })
@@ -343,7 +332,7 @@ async function analyzeImage(imageId) {
   } catch (err) {
     ['gemma', 'gemini'].forEach(m => {
       document.getElementById(`${m}-results-${imageId}`).innerHTML =
-        `<div class="detection-summary"><h4>Detected Shops</h4><div class="shop-row" style="color:#f85149;">Request failed: ${err.message}</div></div>`;
+        `<div class="detection-summary"><h4>Detected Addresses</h4><div class="addr-row" style="color:#f85149;">Request failed: ${err.message}</div></div>`;
     });
   }
 }
@@ -382,8 +371,8 @@ function openLightbox(imageId, source) {
     const w = Math.max(0, Math.min(100, b.xmax) - xmin);
     const h = Math.max(0, Math.min(100, b.ymax) - ymin);
     if (w <= 0 || h <= 0) return;
-    const colorIdx = i % shopColors.length;
-    boxHtml += `<div class="bbox shop-colors-${colorIdx}" style="left:${xmin}%;top:${ymin}%;width:${w}%;height:${h}%"><span class="bbox-label">${b.name || 'Shop'}</span></div>`;
+    const colorIdx = i % addrColors.length;
+    boxHtml += `<div class="bbox addr-colors-${colorIdx}" style="left:${xmin}%;top:${ymin}%;width:${w}%;height:${h}%"><span class="bbox-label">${b.name || '#'}</span></div>`;
   });
 
   inner.innerHTML = `<img src="${src}" alt="${imageId}">${boxHtml}`;
