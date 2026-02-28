@@ -159,23 +159,30 @@ const IMAGE_BASE = 'https://storage.googleapis.com/dpd-street-detection/traffic'
 const restrColors = ['#58a6ff', '#d2a8ff', '#f0883e', '#f85149', '#3fb950', '#d29922'];
 
 const imageCards = [
-  { id: "paris_montmartre", location: "Paris, Montmartre", gtRestrictions: [
-    { type: "Narrow street / restricted access", desc: "Steep narrow streets with potential vehicle restrictions" }
+  { id: "paris_montmartre", location: "Paris, Rue de Rennes", gtRestrictions: [
+    { type: "No-parking / no-stopping sign", desc: "Round red-bordered sign on pole visible" },
+    { type: "Pedestrian crossing", desc: "Zebra crossing with road markings" }
   ]},
-  { id: "london_city", location: "London, City of London", gtRestrictions: [
-    { type: "Congestion charge / ULEZ zone", desc: "City of London traffic management area" }
+  { id: "london_city", location: "London, Ludgate Hill", gtRestrictions: [
+    { type: "Traffic lights", desc: "Signal-controlled junction with red/amber/green lights" },
+    { type: "Yellow lines (no waiting)", desc: "Double yellow lines along kerb indicating no waiting" },
+    { type: "Lane separation bollards", desc: "Blue bollards separating traffic lanes" }
   ]},
   { id: "munich_altstadt", location: "Munich, Altstadt", gtRestrictions: [
-    { type: "Pedestrian zone / time restrictions", desc: "Munich old town restricted access area" }
+    { type: "Narrow street / restricted access", desc: "Narrow old town street with delivery van navigating through parked cars" },
+    { type: "One-way street", desc: "Cars and van driving in single direction" }
   ]},
   { id: "prague_oldtown", location: "Prague, Old Town", gtRestrictions: [
-    { type: "Historic zone restrictions", desc: "Prague old town vehicle access control" }
+    { type: "Historic zone access", desc: "Narrow cobblestone street with limited vehicle access" },
+    { type: "Pedestrian crossing", desc: "Zebra crossing visible in background" }
   ]},
   { id: "rome_trastevere", location: "Rome, Trastevere", gtRestrictions: [
-    { type: "ZTL / limited traffic zone", desc: "Italian ZTL restricted traffic zone" }
+    { type: "ZTL / limited traffic zone", desc: "Narrow Roman street in likely ZTL-controlled area" },
+    { type: "Restricted parking", desc: "Cars parked in narrow street limiting passage" }
   ]},
-  { id: "barcelona_gothic", location: "Barcelona, Gothic Quarter", gtRestrictions: [
-    { type: "Pedestrian zone / narrow streets", desc: "Gothic quarter vehicle restrictions" }
+  { id: "barcelona_gothic", location: "Florence, Centro Storico", gtRestrictions: [
+    { type: "Pedestrian zone", desc: "Narrow medieval street, primarily pedestrian access" },
+    { type: "ZTL restricted area", desc: "Historic center with limited traffic zone controls" }
   ]}
 ];
 

@@ -159,23 +159,29 @@ const IMAGE_BASE = 'https://storage.googleapis.com/dpd-street-detection/parking'
 const featColors = ['#58a6ff', '#d2a8ff', '#f0883e', '#f85149', '#3fb950', '#d29922'];
 
 const imageCards = [
-  { id: "paris_rivoli", location: "Paris, Rue de Rivoli", gtFeatures: [
-    { type: "Restricted parking", desc: "Street-side parking along major boulevard" }
+  { id: "paris_rivoli", location: "Paris, Faubourg Saint-Honoré", gtFeatures: [
+    { type: "Street parking", desc: "Cars parked along kerb, delivery vans visible" },
+    { type: "Crosswalk / pedestrian crossing", desc: "Zebra crossing with parking restrictions nearby" }
   ]},
-  { id: "london_soho", location: "London, Soho", gtFeatures: [
-    { type: "Loading zone / double yellow lines", desc: "Typical London street parking restrictions" }
+  { id: "london_soho", location: "London, Wigmore Street", gtFeatures: [
+    { type: "Parking bays", desc: "White-marked parking bays with parked vehicles" },
+    { type: "Residents parking zone", desc: "Central London controlled parking zone" }
   ]},
-  { id: "berlin_mitte", location: "Berlin, Mitte", gtFeatures: [
-    { type: "Street parking", desc: "Kerbside parking along Berlin street" }
+  { id: "berlin_mitte", location: "Berlin, Invalidenstrasse", gtFeatures: [
+    { type: "No parking zone", desc: "Major road with U-Bahn entrance, no street parking" },
+    { type: "Traffic signals", desc: "Intersection with traffic lights and pedestrian barriers" }
   ]},
-  { id: "amsterdam_centrum", location: "Amsterdam, Centrum", gtFeatures: [
-    { type: "Paid parking zone", desc: "Amsterdam city centre paid parking area" }
+  { id: "amsterdam_centrum", location: "Amsterdam, Overtoom", gtFeatures: [
+    { type: "P sign (paid parking)", desc: "Blue P parking sign visible on right side" },
+    { type: "Street parking along tram line", desc: "Cars parked kerbside alongside tram tracks" }
   ]},
-  { id: "madrid_centro", location: "Madrid, Centro", gtFeatures: [
-    { type: "Regulated parking", desc: "Madrid SER (regulated parking) zone" }
+  { id: "madrid_centro", location: "Madrid, Calle de Serrano", gtFeatures: [
+    { type: "Regulated parking (SER)", desc: "Green-marked parking bays indicating regulated paid parking" },
+    { type: "Street parking both sides", desc: "Vehicles parked on both sides of tree-lined street" }
   ]},
-  { id: "brussels_louiza", location: "Brussels, Avenue Louise", gtFeatures: [
-    { type: "Street parking", desc: "Boulevard parking with restrictions" }
+  { id: "brussels_louiza", location: "Brussels, Chaussée de Charleroi", gtFeatures: [
+    { type: "Street parking", desc: "Cars and delivery van parked along residential street" },
+    { type: "Cycle lane markings", desc: "Bicycle symbol painted on road surface" }
   ]}
 ];
 
