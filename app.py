@@ -42,11 +42,9 @@ HOURS_PROMPT = (
     "(e.g. \"Mon-Fri 9:00-18:00\"). Use \"Not visible\" if no hours can be read.\n"
     "- status: whether the shop appears to be \"open\", \"closed\", or \"unknown\" "
     "based on visual cues (lights on, door open, OPEN/CLOSED sign, customers inside, "
-    "shutters down, etc.)\n"
-    "- bounding_box: {xmin, ymin, xmax, ymax} as PERCENTAGES of image dimensions "
-    "(0.0 to 100.0) around the shop front.\n\n"
+    "shutters down, etc.)\n\n"
     "Return ONLY a JSON object (no markdown fences) with a \"shops\" array. "
-    "Each element must include shop_name, opening_hours, status, and bounding_box."
+    "Each element must include shop_name, opening_hours, and status."
 )
 
 RDD_PROMPT = (
@@ -78,11 +76,9 @@ PARKING_PROMPT = (
     "\"time_limited_parking\")\n"
     "- description: brief description of what you see\n"
     "- suitability: whether this spot/zone is suitable for a DPD delivery van "
-    "(\"yes\", \"no\", \"maybe\")\n"
-    "- bounding_box: {xmin, ymin, xmax, ymax} as PERCENTAGES of image dimensions "
-    "(0.0 to 100.0) around the feature.\n\n"
+    "(\"yes\", \"no\", \"maybe\")\n\n"
     "Return ONLY a JSON object (no markdown fences) with a \"features\" array. "
-    "Each element must include type, description, suitability, and bounding_box."
+    "Each element must include type, description, and suitability."
 )
 
 ADDRESSES_PROMPT = (
@@ -95,11 +91,9 @@ ADDRESSES_PROMPT = (
     "- type: the type of marker (e.g. \"house_number\", \"building_name\", "
     "\"street_sign\", \"address_plaque\")\n"
     "- visibility: how clearly readable the number/name is (\"clear\", \"partial\", "
-    "\"obscured\")\n"
-    "- bounding_box: {xmin, ymin, xmax, ymax} as PERCENTAGES of image dimensions "
-    "(0.0 to 100.0) around the address marker.\n\n"
+    "\"obscured\")\n\n"
     "Return ONLY a JSON object (no markdown fences) with an \"addresses\" array. "
-    "Each element must include number, type, visibility, and bounding_box."
+    "Each element must include number, type, and visibility."
 )
 
 TRAFFIC_PROMPT = (
@@ -112,11 +106,9 @@ TRAFFIC_PROMPT = (
     "\"speed_limit\", \"no_trucks\", \"low_emission_zone\")\n"
     "- description: brief description of what the sign/restriction indicates\n"
     "- impact: impact on a standard DPD delivery van (\"high\", \"medium\", \"low\", "
-    "\"none\")\n"
-    "- bounding_box: {xmin, ymin, xmax, ymax} as PERCENTAGES of image dimensions "
-    "(0.0 to 100.0) around the sign/restriction.\n\n"
+    "\"none\")\n\n"
     "Return ONLY a JSON object (no markdown fences) with a \"restrictions\" array. "
-    "Each element must include type, description, impact, and bounding_box."
+    "Each element must include type, description, and impact."
 )
 
 
@@ -323,40 +315,6 @@ def download_hours_image(image_id):
     return resp.content
 
 
-def normalize_shop_bboxes(parsed, img_width, img_height):
-    """Normalize bounding boxes for shop detection results.
-
-    Handles per-coordinate detection: if a value exceeds 100 it's in
-    0-1000 scale and gets divided by 10.  Values already in 0-100
-    range are kept as-is.  This avoids the problem where mixed-scale
-    responses (e.g. xmin=490, xmax=100) get uniformly divided.
-    """
-    shops = parsed.get("shops", [])
-
-    for shop in shops:
-        bb = shop.get("bounding_box", {})
-        if not bb:
-            continue
-
-        # Check if any value exceeds pixel range (> 1000)
-        vals = [bb.get(k, 0) for k in ("xmin", "ymin", "xmax", "ymax")]
-        max_val = max(vals) if vals else 0
-
-        for key in ("xmin", "ymin", "xmax", "ymax"):
-            v = bb.get(key, 0)
-            if max_val > 1000 and img_width and img_height:
-                # Pixel coordinates
-                if key in ("xmin", "xmax"):
-                    v = v / img_width * 100
-                else:
-                    v = v / img_height * 100
-            elif v > 100:
-                # 0-1000 scale per coordinate
-                v = v / 10.0
-            bb[key] = round(max(0, min(100, v)), 2)
-
-    return parsed
-
 
 def parse_hours_json(raw_text):
     """Extract JSON from model response for hours detection."""
@@ -380,7 +338,6 @@ def call_gemma_hours(image_id, token, img_data, prompt=None):
     """Call Gemma 3n for shop hours detection."""
     try:
         img_b64 = base64.b64encode(img_data).decode()
-        img_w, img_h = get_jpeg_dimensions(img_data)
         payload = {
             "model": "google/gemma-3n-E4B-it",
             "messages": [
@@ -413,7 +370,6 @@ def call_gemma_hours(image_id, token, img_data, prompt=None):
         data = resp.json()
         raw_text = data["choices"][0]["message"]["content"]
         parsed = parse_hours_json(raw_text)
-        parsed = normalize_shop_bboxes(parsed, img_w, img_h)
         return {"status": "ok", "result": parsed, "raw": raw_text}
     except Exception as e:
         return {"status": "error", "error": str(e), "result": {"shops": []}}
@@ -422,7 +378,6 @@ def call_gemma_hours(image_id, token, img_data, prompt=None):
 def call_gemini_hours(image_id, token, img_data, prompt=None):
     """Call Gemini 3.1 Pro for shop hours detection."""
     try:
-        img_w, img_h = get_jpeg_dimensions(img_data)
         payload = {
             "contents": [
                 {
@@ -453,7 +408,6 @@ def call_gemini_hours(image_id, token, img_data, prompt=None):
         data = resp.json()
         raw_text = data["candidates"][0]["content"]["parts"][-1]["text"]
         parsed = parse_hours_json(raw_text)
-        parsed = normalize_shop_bboxes(parsed, img_w, img_h)
         return {"status": "ok", "result": parsed, "raw": raw_text}
     except Exception as e:
         return {"status": "error", "error": str(e), "result": {"shops": []}}
@@ -483,34 +437,6 @@ def download_traffic_image(image_id):
     return resp.content
 
 
-def normalize_generic_bboxes(parsed, img_width, img_height, list_key, box_key="bounding_box"):
-    """Normalize bounding boxes for generic detection results (parking, addresses, traffic).
-
-    Works with responses that have a single bounding_box per item (not an array).
-    """
-    items = parsed.get(list_key, [])
-
-    for item in items:
-        bb = item.get(box_key, {})
-        if not bb:
-            continue
-
-        vals = [bb.get(k, 0) for k in ("xmin", "ymin", "xmax", "ymax")]
-        max_val = max(vals) if vals else 0
-
-        for key in ("xmin", "ymin", "xmax", "ymax"):
-            v = bb.get(key, 0)
-            if max_val > 1000 and img_width and img_height:
-                if key in ("xmin", "xmax"):
-                    v = v / img_width * 100
-                else:
-                    v = v / img_height * 100
-            elif v > 100:
-                v = v / 10.0
-            bb[key] = round(max(0, min(100, v)), 2)
-
-    return parsed
-
 
 def parse_generic_json(raw_text, fallback_key):
     """Extract JSON from model response for generic detection."""
@@ -534,7 +460,6 @@ def call_gemma_parking(image_id, token, img_data, prompt=None):
     """Call Gemma 3n for parking detection."""
     try:
         img_b64 = base64.b64encode(img_data).decode()
-        img_w, img_h = get_jpeg_dimensions(img_data)
         payload = {
             "model": "google/gemma-3n-E4B-it",
             "messages": [{"role": "user", "content": [
@@ -550,7 +475,6 @@ def call_gemma_parking(image_id, token, img_data, prompt=None):
         data = resp.json()
         raw_text = data["choices"][0]["message"]["content"]
         parsed = parse_generic_json(raw_text, "features")
-        parsed = normalize_generic_bboxes(parsed, img_w, img_h, "features")
         return {"status": "ok", "result": parsed, "raw": raw_text}
     except Exception as e:
         return {"status": "error", "error": str(e), "result": {"features": []}}
@@ -559,7 +483,6 @@ def call_gemma_parking(image_id, token, img_data, prompt=None):
 def call_gemini_parking(image_id, token, img_data, prompt=None):
     """Call Gemini 3.1 Pro for parking detection."""
     try:
-        img_w, img_h = get_jpeg_dimensions(img_data)
         payload = {
             "contents": [{"role": "user", "parts": [
                 {"fileData": {"mimeType": "image/jpeg", "fileUri": f"{GCS_PARKING_IMAGE_BASE}/{image_id}.jpg"}},
@@ -574,7 +497,6 @@ def call_gemini_parking(image_id, token, img_data, prompt=None):
         data = resp.json()
         raw_text = data["candidates"][0]["content"]["parts"][-1]["text"]
         parsed = parse_generic_json(raw_text, "features")
-        parsed = normalize_generic_bboxes(parsed, img_w, img_h, "features")
         return {"status": "ok", "result": parsed, "raw": raw_text}
     except Exception as e:
         return {"status": "error", "error": str(e), "result": {"features": []}}
@@ -584,7 +506,6 @@ def call_gemma_addresses(image_id, token, img_data, prompt=None):
     """Call Gemma 3n for address detection."""
     try:
         img_b64 = base64.b64encode(img_data).decode()
-        img_w, img_h = get_jpeg_dimensions(img_data)
         payload = {
             "model": "google/gemma-3n-E4B-it",
             "messages": [{"role": "user", "content": [
@@ -600,7 +521,6 @@ def call_gemma_addresses(image_id, token, img_data, prompt=None):
         data = resp.json()
         raw_text = data["choices"][0]["message"]["content"]
         parsed = parse_generic_json(raw_text, "addresses")
-        parsed = normalize_generic_bboxes(parsed, img_w, img_h, "addresses")
         return {"status": "ok", "result": parsed, "raw": raw_text}
     except Exception as e:
         return {"status": "error", "error": str(e), "result": {"addresses": []}}
@@ -609,7 +529,6 @@ def call_gemma_addresses(image_id, token, img_data, prompt=None):
 def call_gemini_addresses(image_id, token, img_data, prompt=None):
     """Call Gemini 3.1 Pro for address detection."""
     try:
-        img_w, img_h = get_jpeg_dimensions(img_data)
         payload = {
             "contents": [{"role": "user", "parts": [
                 {"fileData": {"mimeType": "image/jpeg", "fileUri": f"{GCS_ADDRESSES_IMAGE_BASE}/{image_id}.jpg"}},
@@ -624,7 +543,6 @@ def call_gemini_addresses(image_id, token, img_data, prompt=None):
         data = resp.json()
         raw_text = data["candidates"][0]["content"]["parts"][-1]["text"]
         parsed = parse_generic_json(raw_text, "addresses")
-        parsed = normalize_generic_bboxes(parsed, img_w, img_h, "addresses")
         return {"status": "ok", "result": parsed, "raw": raw_text}
     except Exception as e:
         return {"status": "error", "error": str(e), "result": {"addresses": []}}
@@ -634,7 +552,6 @@ def call_gemma_traffic(image_id, token, img_data, prompt=None):
     """Call Gemma 3n for traffic restriction detection."""
     try:
         img_b64 = base64.b64encode(img_data).decode()
-        img_w, img_h = get_jpeg_dimensions(img_data)
         payload = {
             "model": "google/gemma-3n-E4B-it",
             "messages": [{"role": "user", "content": [
@@ -650,7 +567,6 @@ def call_gemma_traffic(image_id, token, img_data, prompt=None):
         data = resp.json()
         raw_text = data["choices"][0]["message"]["content"]
         parsed = parse_generic_json(raw_text, "restrictions")
-        parsed = normalize_generic_bboxes(parsed, img_w, img_h, "restrictions")
         return {"status": "ok", "result": parsed, "raw": raw_text}
     except Exception as e:
         return {"status": "error", "error": str(e), "result": {"restrictions": []}}
@@ -659,7 +575,6 @@ def call_gemma_traffic(image_id, token, img_data, prompt=None):
 def call_gemini_traffic(image_id, token, img_data, prompt=None):
     """Call Gemini 3.1 Pro for traffic restriction detection."""
     try:
-        img_w, img_h = get_jpeg_dimensions(img_data)
         payload = {
             "contents": [{"role": "user", "parts": [
                 {"fileData": {"mimeType": "image/jpeg", "fileUri": f"{GCS_TRAFFIC_IMAGE_BASE}/{image_id}.jpg"}},
@@ -674,7 +589,6 @@ def call_gemini_traffic(image_id, token, img_data, prompt=None):
         data = resp.json()
         raw_text = data["candidates"][0]["content"]["parts"][-1]["text"]
         parsed = parse_generic_json(raw_text, "restrictions")
-        parsed = normalize_generic_bboxes(parsed, img_w, img_h, "restrictions")
         return {"status": "ok", "result": parsed, "raw": raw_text}
     except Exception as e:
         return {"status": "error", "error": str(e), "result": {"restrictions": []}}

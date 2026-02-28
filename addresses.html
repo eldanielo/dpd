@@ -26,8 +26,6 @@
     .image-card { background: #161b22; border: 1px solid #30363d; border-radius: 10px; overflow: hidden; }
     .image-card-header { padding: 16px 20px; border-bottom: 1px solid #30363d; display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
     .image-card-header h2 { font-size: 16px; font-weight: 600; margin-right: auto; }
-    .image-card-header .badge { font-size: 12px; padding: 3px 10px; border-radius: 12px; font-weight: 500; }
-    .badge-addr { background: #3fb95030; color: #3fb950; border: 1px solid #3fb95060; }
 
     .analyze-btn {
       background: #238636; color: #fff; border: 1px solid #2ea04366; border-radius: 6px;
@@ -43,11 +41,12 @@
     .analyze-btn.loading .spinner { display: inline-block; }
     @keyframes spin { to { transform: rotate(360deg); } }
 
-    .three-col { display: grid; grid-template-columns: 1fr 1fr 1fr; }
-    .three-col > div { padding: 16px; border-right: 1px solid #30363d; }
-    .three-col > div:last-child { border-right: none; }
+    .image-preview { padding: 16px; border-bottom: 1px solid #30363d; }
+    .image-preview img { width: 100%; max-width: 640px; border-radius: 6px; border: 1px solid #30363d; display: block; }
 
-    .image-previews { border-bottom: 1px solid #30363d; }
+    .two-col { display: grid; grid-template-columns: 1fr 1fr; }
+    .two-col > div { padding: 16px; border-right: 1px solid #30363d; }
+    .two-col > div:last-child { border-right: none; }
 
     .col-header {
       font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px; color: #8b949e;
@@ -55,32 +54,8 @@
       display: flex; align-items: center; gap: 6px;
     }
     .col-header .dot { width: 8px; height: 8px; border-radius: 50%; }
-    .dot-gt { background: #f0883e; }
     .dot-gemma { background: #58a6ff; }
     .dot-gemini { background: #d2a8ff; }
-
-    .img-container { position: relative; cursor: pointer; overflow: hidden; }
-    .img-container img { width: 100%; border-radius: 6px; border: 1px solid #30363d; display: block; }
-    .img-container:hover { opacity: 0.9; }
-
-    .bbox { position: absolute; border: 2px solid; border-radius: 2px; pointer-events: none; }
-    .bbox-label { position: absolute; top: -16px; left: -1px; font-size: 10px; font-weight: 700; padding: 1px 4px; border-radius: 2px; font-family: monospace; white-space: nowrap; }
-
-    .addr-colors-0 { border-color: #58a6ff; }
-    .addr-colors-0 .bbox-label { background: #58a6ff; color: #0d1117; }
-    .addr-colors-1 { border-color: #d2a8ff; }
-    .addr-colors-1 .bbox-label { background: #d2a8ff; color: #0d1117; }
-    .addr-colors-2 { border-color: #f0883e; }
-    .addr-colors-2 .bbox-label { background: #f0883e; color: #0d1117; }
-    .addr-colors-3 { border-color: #f85149; }
-    .addr-colors-3 .bbox-label { background: #f85149; color: #0d1117; }
-    .addr-colors-4 { border-color: #3fb950; }
-    .addr-colors-4 .bbox-label { background: #3fb950; color: #0d1117; }
-    .addr-colors-5 { border-color: #d29922; }
-    .addr-colors-5 .bbox-label { background: #d29922; color: #0d1117; }
-
-    .ground-truth { background: #0d1117; border: 1px solid #30363d; border-radius: 6px; padding: 12px; margin-top: 10px; }
-    .ground-truth h4 { font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px; color: #8b949e; margin-bottom: 8px; }
 
     .addr-row { padding: 6px 0; font-size: 13px; border-bottom: 1px solid #30363d22; }
     .addr-row:last-child { border-bottom: none; }
@@ -94,7 +69,7 @@
     .addr-vis.vis-partial { background: #d29a2840; color: #d29922; border: 1px solid #d29a2860; }
     .addr-vis.vis-obscured { background: #da363330; color: #f85149; border: 1px solid #da363360; }
 
-    .detection-summary { background: #0d1117; border: 1px solid #30363d; border-radius: 6px; padding: 12px; margin-top: 10px; }
+    .detection-summary { background: #0d1117; border: 1px solid #30363d; border-radius: 6px; padding: 12px; }
     .detection-summary h4 { font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px; color: #8b949e; margin-bottom: 8px; }
 
     .no-results { color: #484f58; font-style: italic; font-size: 13px; padding: 8px 0; }
@@ -103,14 +78,12 @@
     .lightbox.active { display: flex; }
     .lightbox-inner { position: relative; max-width: 95vw; max-height: 95vh; }
     .lightbox-inner img { max-width: 95vw; max-height: 95vh; border-radius: 8px; }
-    .lightbox .bbox-label { font-size: 13px; top: -20px; padding: 2px 6px; }
-    .lightbox .bbox { border-width: 3px; }
     .lightbox-close { position: fixed; top: 20px; right: 30px; color: #fff; font-size: 32px; cursor: pointer; z-index: 1001; }
 
-    @media (max-width: 1200px) {
-      .three-col { grid-template-columns: 1fr; }
-      .three-col > div { border-right: none; border-bottom: 1px solid #30363d; }
-      .three-col > div:last-child { border-bottom: none; }
+    @media (max-width: 900px) {
+      .two-col { grid-template-columns: 1fr; }
+      .two-col > div { border-right: none; border-bottom: 1px solid #30363d; }
+      .two-col > div:last-child { border-bottom: none; }
     }
   </style>
 </head>
@@ -139,12 +112,10 @@ For each address found, provide:
 - number: the house number or building identifier visible (e.g. "42", "12A", "Building Name")
 - type: the type of marker (e.g. "house_number", "building_name", "street_sign", "address_plaque")
 - visibility: how clearly readable the number/name is ("clear", "partial", "obscured")
-- bounding_box: {xmin, ymin, xmax, ymax} as percentages (0-100) of image dimensions
 
-Return ONLY a JSON object with an "addresses" array. Each element must include number, type, visibility, and bounding_box.</textarea>
+Return ONLY a JSON object with an "addresses" array. Each element must include number, type, and visibility.</textarea>
 </div>
 
-<!-- Lightbox -->
 <div class="lightbox" id="lightbox" onclick="closeLightbox()">
   <span class="lightbox-close">&times;</span>
   <div class="lightbox-inner" id="lightbox-inner"></div>
@@ -155,90 +126,28 @@ Return ONLY a JSON object with an "addresses" array. Each element must include n
 <script>
 const IMAGE_BASE = 'https://storage.googleapis.com/dpd-street-detection/addresses';
 
-const addrColors = ['#58a6ff', '#d2a8ff', '#f0883e', '#f85149', '#3fb950', '#d29922'];
-
 const imageCards = [
-  { id: "paris_marais", location: "Paris, Rue des Martyrs", gtAddresses: [
-    { number: "7 BIS", type: "House number on ornate doorway" },
-    { number: "DEPOT VENTE MONICA", type: "Shop name on facade" }
-  ]},
-  { id: "london_kensington", location: "London, Gloucester Place", gtAddresses: [
-    { number: "Various", type: "Georgian terraced house numbers on doors" }
-  ]},
-  { id: "berlin_prenzlauer", location: "Berlin, Schönhauser Allee", gtAddresses: [
-    { number: "AOK", type: "Building name / business sign" },
-    { number: "Schönhauser Allee", type: "Street name sign on pole" }
-  ]},
-  { id: "amsterdam_jordaan", location: "Amsterdam, Stadhouderskade", gtAddresses: [
-    { number: "15", type: "House number on door frame" },
-    { number: "1874", type: "Year stone / date plaque on facade" }
-  ]},
-  { id: "vienna_innere", location: "Vienna, Spiegelgasse", gtAddresses: [
-    { number: "No 25", type: "House number plaque" },
-    { number: "KUNSTHANDEL W. SMOLKA", type: "Business name on shopfront" }
-  ]},
-  { id: "lisbon_alfama", location: "Lisbon, Rua da Conceição", gtAddresses: [
-    { number: "Various", type: "Building numbers along pedestrian street" }
-  ]}
+  { id: "paris_marais", location: "Paris, Rue des Martyrs" },
+  { id: "london_kensington", location: "London, Gloucester Place" },
+  { id: "berlin_prenzlauer", location: "Berlin, Schönhauser Allee" },
+  { id: "amsterdam_jordaan", location: "Amsterdam, Stadhouderskade" },
+  { id: "vienna_innere", location: "Vienna, Spiegelgasse" },
+  { id: "lisbon_alfama", location: "Lisbon, Rua da Conceição" }
 ];
-
-function drawAddrBoxes(container, boxes) {
-  if (!container) return;
-  container.querySelectorAll('.bbox').forEach(b => b.remove());
-  boxes.forEach((b, i) => {
-    const xmin = Math.max(0, Math.min(100, b.xmin));
-    const ymin = Math.max(0, Math.min(100, b.ymin));
-    const xmax = Math.max(0, Math.min(100, b.xmax));
-    const ymax = Math.max(0, Math.min(100, b.ymax));
-    const w = xmax - xmin;
-    const h = ymax - ymin;
-    if (w <= 0 || h <= 0) return;
-    const colorIdx = i % addrColors.length;
-    const div = document.createElement('div');
-    div.className = `bbox addr-colors-${colorIdx}`;
-    div.style.left = xmin + '%';
-    div.style.top = ymin + '%';
-    div.style.width = w + '%';
-    div.style.height = h + '%';
-    const label = b.name || `#${i + 1}`;
-    div.innerHTML = `<span class="bbox-label">${label}</span>`;
-    container.appendChild(div);
-  });
-}
 
 function buildCard(card) {
   const imgSrc = `${IMAGE_BASE}/${card.id}.jpg`;
-  const addrCount = card.gtAddresses.length;
-
-  const gtRows = card.gtAddresses.map(a =>
-    `<div class="addr-row">
-      <div class="addr-num">${a.number}</div>
-      <div class="addr-type">${a.type}</div>
-    </div>`
-  ).join('');
-
   return `
   <div class="image-card" id="card-${card.id}">
     <div class="image-card-header">
       <h2>${card.location}</h2>
-      <span class="badge badge-addr">Address reading</span>
     </div>
-    <div class="three-col image-previews">
-      <div>
-        <div class="col-header"><span class="dot dot-gt"></span> Ground Truth</div>
-        <div class="img-container" id="gt-container-${card.id}" onclick="openLightbox('${card.id}', 'gt')">
-          <img src="${imgSrc}" alt="${card.id} GT" id="gt-img-${card.id}">
-        </div>
-        <div class="ground-truth">
-          <h4>Expected Addresses</h4>
-          ${gtRows}
-        </div>
-      </div>
+    <div class="image-preview">
+      <img src="${imgSrc}" alt="${card.location}" onclick="openLightbox('${card.id}')">
+    </div>
+    <div class="two-col">
       <div>
         <div class="col-header"><span class="dot dot-gemma"></span> Gemma 3n E4B-IT</div>
-        <div class="img-container" id="gemma-container-${card.id}" onclick="openLightbox('${card.id}', 'gemma')">
-          <img src="${imgSrc}" alt="${card.id} Gemma" id="gemma-img-${card.id}">
-        </div>
         <div id="gemma-results-${card.id}">
           <div class="detection-summary" style="opacity:0.5;">
             <h4>Detected Addresses</h4>
@@ -248,9 +157,6 @@ function buildCard(card) {
       </div>
       <div>
         <div class="col-header"><span class="dot dot-gemini"></span> Gemini 3.1 Pro</div>
-        <div class="img-container" id="gemini-container-${card.id}" onclick="openLightbox('${card.id}', 'gemini')">
-          <img src="${imgSrc}" alt="${card.id} Gemini" id="gemini-img-${card.id}">
-        </div>
         <div id="gemini-results-${card.id}">
           <div class="detection-summary" style="opacity:0.5;">
             <h4>Detected Addresses</h4>
@@ -262,21 +168,7 @@ function buildCard(card) {
   </div>`;
 }
 
-const modelBoxes = {};
-
-function extractAddrBoxes(result) {
-  const boxes = [];
-  const addresses = result.addresses || [];
-  addresses.forEach(a => {
-    const bb = a.bounding_box || {};
-    if (bb.xmin !== undefined) {
-      boxes.push({ name: a.number || '?', xmin: bb.xmin, ymin: bb.ymin, xmax: bb.xmax, ymax: bb.ymax });
-    }
-  });
-  return boxes;
-}
-
-function renderAddrResults(imageId, modelResult, containerId) {
+function renderResults(imageId, modelResult, containerId) {
   const el = document.getElementById(containerId);
   if (!el) return;
 
@@ -293,13 +185,12 @@ function renderAddrResults(imageId, modelResult, containerId) {
   if (addresses.length === 0) {
     rows = '<div class="no-results">No addresses detected</div>';
   } else {
-    rows = addresses.map((a, i) => {
-      const colorIdx = i % addrColors.length;
+    rows = addresses.map(a => {
       const vis = (a.visibility || 'clear').toLowerCase();
       const visCls = vis === 'clear' ? 'vis-clear' : vis === 'partial' ? 'vis-partial' : 'vis-obscured';
       const visLabel = vis.charAt(0).toUpperCase() + vis.slice(1);
       return `<div class="addr-row">
-        <div class="addr-num"><span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:${addrColors[colorIdx]};margin-right:6px;vertical-align:middle;"></span>${a.number || '?'}<span class="addr-vis ${visCls}">${visLabel}</span></div>
+        <div class="addr-num">${a.number || '?'}<span class="addr-vis ${visCls}">${visLabel}</span></div>
         <div class="addr-type">${a.type || 'house_number'}</div>
       </div>`;
     }).join('');
@@ -309,13 +200,6 @@ function renderAddrResults(imageId, modelResult, containerId) {
     <h4>Detected Addresses <span style="font-size:11px;color:#8b949e;font-weight:400;">(${addresses.length} found)</span></h4>
     ${rows}
   </div>`;
-}
-
-function updateModelColumn(imageId, modelName, modelData) {
-  const boxes = modelData.status === 'ok' ? extractAddrBoxes(modelData.result) : [];
-  modelBoxes[`${modelName}-${imageId}`] = boxes;
-  drawAddrBoxes(document.getElementById(`${modelName}-container-${imageId}`), boxes);
-  renderAddrResults(imageId, modelData, `${modelName}-results-${imageId}`);
 }
 
 async function analyzeImage(imageId) {
@@ -331,8 +215,8 @@ async function analyzeImage(imageId) {
       body: JSON.stringify({ image_id: imageId, prompt: document.getElementById('prompt-editor').value })
     });
     const data = await resp.json();
-    updateModelColumn(imageId, 'gemma', data.gemma);
-    updateModelColumn(imageId, 'gemini', data.gemini);
+    renderResults(imageId, data.gemma, `gemma-results-${imageId}`);
+    renderResults(imageId, data.gemini, `gemini-results-${imageId}`);
   } catch (err) {
     ['gemma', 'gemini'].forEach(m => {
       document.getElementById(`${m}-results-${imageId}`).innerHTML =
@@ -361,27 +245,10 @@ async function analyzeAll() {
   btn.querySelector('span:last-child').textContent = 'Re-analyze All';
 }
 
-function openLightbox(imageId, source) {
+function openLightbox(imageId) {
   const lb = document.getElementById('lightbox');
   const inner = document.getElementById('lightbox-inner');
-  const src = `${IMAGE_BASE}/${imageId}.jpg`;
-
-  let boxes = modelBoxes[`${source}-${imageId}`] || [];
-
-  let boxHtml = '';
-  boxes.forEach((b, i) => {
-    const xmin = Math.max(0, Math.min(100, b.xmin));
-    const ymin = Math.max(0, Math.min(100, b.ymin));
-    const w = Math.max(0, Math.min(100, b.xmax) - xmin);
-    const h = Math.max(0, Math.min(100, b.ymax) - ymin);
-    if (w <= 0 || h <= 0) return;
-    const colorIdx = i % addrColors.length;
-    boxHtml += `<div class="bbox addr-colors-${colorIdx}" style="left:${xmin}%;top:${ymin}%;width:${w}%;height:${h}%"><span class="bbox-label">${b.name || '#'}</span></div>`;
-  });
-
-  inner.innerHTML = `<img src="${src}" alt="${imageId}">${boxHtml}`;
-  inner.style.position = 'relative';
-  inner.style.display = 'inline-block';
+  inner.innerHTML = `<img src="${IMAGE_BASE}/${imageId}.jpg" alt="${imageId}">`;
   lb.classList.add('active');
 }
 
@@ -391,7 +258,6 @@ function closeLightbox() {
 
 document.addEventListener('keydown', e => { if (e.key === 'Escape') closeLightbox(); });
 
-// Build all cards
 const container = document.getElementById('cards-container');
 container.innerHTML = imageCards.map(buildCard).join('');
 </script>
