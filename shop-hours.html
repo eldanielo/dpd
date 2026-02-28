@@ -18,7 +18,8 @@
 
     .prompt-section { background: #161b22; border: 1px solid #30363d; border-radius: 8px; margin: 24px 40px 0; padding: 20px; }
     .prompt-section h3 { font-size: 13px; text-transform: uppercase; letter-spacing: 0.5px; color: #8b949e; margin-bottom: 10px; }
-    .prompt-box { background: #0d1117; border: 1px solid #30363d; border-radius: 6px; padding: 14px 16px; font-family: 'SF Mono', 'Fira Code', monospace; font-size: 13px; line-height: 1.6; color: #c9d1d9; white-space: pre-wrap; }
+    .prompt-box { background: #0d1117; border: 1px solid #30363d; border-radius: 6px; padding: 14px 16px; font-family: 'SF Mono', 'Fira Code', monospace; font-size: 13px; line-height: 1.6; color: #c9d1d9; white-space: pre-wrap; width: 100%; resize: vertical; }
+    .prompt-box:focus { outline: none; border-color: #58a6ff; }
 
     .cards-container { padding: 24px 40px; display: flex; flex-direction: column; gap: 32px; }
 
@@ -136,7 +137,7 @@
 
 <div class="prompt-section">
   <h3>Prompt (same for all models)</h3>
-  <div class="prompt-box">You are a shop detection AI analyzing street-level images of European storefronts. Identify every shop, restaurant, cafe, or business visible in the image.
+  <textarea class="prompt-box" id="prompt-editor" rows="10">You are a shop detection AI analyzing street-level images of European storefronts. Identify every shop, restaurant, cafe, or business visible in the image.
 
 For each business found, provide:
 - shop_name: the name visible on the signage
@@ -144,7 +145,7 @@ For each business found, provide:
 - status: whether the shop appears to be "open", "closed", or "unknown" based on visual cues (lights on, door open, OPEN/CLOSED sign, customers inside, shutters down, etc.)
 - bounding_box: {xmin, ymin, xmax, ymax} as percentages (0-100) of image dimensions
 
-Return ONLY a JSON object with a "shops" array. Each element must include shop_name, opening_hours, status, and bounding_box.</div>
+Return ONLY a JSON object with a "shops" array. Each element must include shop_name, opening_hours, status, and bounding_box.</textarea>
 </div>
 
 <!-- Lightbox -->
@@ -334,7 +335,7 @@ async function analyzeImage(imageId) {
     const resp = await fetch('/analyze-hours', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ image_id: imageId })
+      body: JSON.stringify({ image_id: imageId, prompt: document.getElementById('prompt-editor').value })
     });
     const data = await resp.json();
     updateModelColumn(imageId, 'gemma', data.gemma);

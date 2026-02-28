@@ -176,7 +176,7 @@ def normalize_bboxes(parsed, img_width, img_height):
     return parsed
 
 
-def call_gemma(image_id, token, img_data):
+def call_gemma(image_id, token, img_data, prompt=None):
     """Call Gemma 3n E4B-IT via the vLLM rawPredict endpoint."""
     try:
         img_b64 = base64.b64encode(img_data).decode()
@@ -193,7 +193,7 @@ def call_gemma(image_id, token, img_data):
                                 "url": f"data:image/jpeg;base64,{img_b64}"
                             },
                         },
-                        {"type": "text", "text": RDD_PROMPT},
+                        {"type": "text", "text": prompt or RDD_PROMPT},
                     ],
                 }
             ],
@@ -219,7 +219,7 @@ def call_gemma(image_id, token, img_data):
         return {"status": "error", "error": str(e), "result": {"defects": []}}
 
 
-def call_gemini(image_id, token, img_data):
+def call_gemini(image_id, token, img_data, prompt=None):
     """Call Gemini 3.1 Pro via Vertex AI generateContent."""
     try:
         img_w, img_h = get_jpeg_dimensions(img_data)
@@ -234,7 +234,7 @@ def call_gemini(image_id, token, img_data):
                                 "fileUri": f"{GCS_IMAGE_BASE}/{image_id}.jpg",
                             }
                         },
-                        {"text": RDD_PROMPT},
+                        {"text": prompt or RDD_PROMPT},
                     ],
                 }
             ],
@@ -320,7 +320,7 @@ def parse_hours_json(raw_text):
         return {"raw_response": raw_text, "shops": []}
 
 
-def call_gemma_hours(image_id, token, img_data):
+def call_gemma_hours(image_id, token, img_data, prompt=None):
     """Call Gemma 3n for shop hours detection."""
     try:
         img_b64 = base64.b64encode(img_data).decode()
@@ -337,7 +337,7 @@ def call_gemma_hours(image_id, token, img_data):
                                 "url": f"data:image/jpeg;base64,{img_b64}"
                             },
                         },
-                        {"type": "text", "text": HOURS_PROMPT},
+                        {"type": "text", "text": prompt or HOURS_PROMPT},
                     ],
                 }
             ],
@@ -363,7 +363,7 @@ def call_gemma_hours(image_id, token, img_data):
         return {"status": "error", "error": str(e), "result": {"shops": []}}
 
 
-def call_gemini_hours(image_id, token, img_data):
+def call_gemini_hours(image_id, token, img_data, prompt=None):
     """Call Gemini 3.1 Pro for shop hours detection."""
     try:
         img_w, img_h = get_jpeg_dimensions(img_data)
@@ -378,7 +378,7 @@ def call_gemini_hours(image_id, token, img_data):
                                 "fileUri": f"{GCS_HOURS_IMAGE_BASE}/{image_id}.jpg",
                             }
                         },
-                        {"text": HOURS_PROMPT},
+                        {"text": prompt or HOURS_PROMPT},
                     ],
                 }
             ],
@@ -422,6 +422,7 @@ def shop_hours():
 def analyze():
     body = request.get_json()
     image_id = body.get("image_id")
+    prompt = body.get("prompt")
     if not image_id:
         return jsonify({"error": "image_id required"}), 400
 
@@ -429,8 +430,8 @@ def analyze():
     img_data = download_image(image_id)
 
     with ThreadPoolExecutor(max_workers=2) as executor:
-        gemma_future = executor.submit(call_gemma, image_id, token, img_data)
-        gemini_future = executor.submit(call_gemini, image_id, token, img_data)
+        gemma_future = executor.submit(call_gemma, image_id, token, img_data, prompt)
+        gemini_future = executor.submit(call_gemini, image_id, token, img_data, prompt)
         gemma_result = gemma_future.result()
         gemini_result = gemini_future.result()
 
@@ -443,6 +444,7 @@ def analyze():
 def analyze_hours():
     body = request.get_json()
     image_id = body.get("image_id")
+    prompt = body.get("prompt")
     if not image_id:
         return jsonify({"error": "image_id required"}), 400
 
@@ -450,8 +452,8 @@ def analyze_hours():
     img_data = download_hours_image(image_id)
 
     with ThreadPoolExecutor(max_workers=2) as executor:
-        gemma_future = executor.submit(call_gemma_hours, image_id, token, img_data)
-        gemini_future = executor.submit(call_gemini_hours, image_id, token, img_data)
+        gemma_future = executor.submit(call_gemma_hours, image_id, token, img_data, prompt)
+        gemini_future = executor.submit(call_gemini_hours, image_id, token, img_data, prompt)
         gemma_result = gemma_future.result()
         gemini_result = gemini_future.result()
 
