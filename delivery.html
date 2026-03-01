@@ -59,9 +59,7 @@
     .image-preview { padding: 16px; border-bottom: 1px solid #30363d; }
     .image-preview img { width: 100%; max-width: 640px; border-radius: 6px; border: 1px solid #30363d; display: block; cursor: zoom-in; }
 
-    .two-col { display: grid; grid-template-columns: 1fr 1fr; }
-    .two-col > div { padding: 16px; border-right: 1px solid #30363d; }
-    .two-col > div:last-child { border-right: none; }
+    .result-section { padding: 16px; }
 
     .col-header {
       font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px; color: #8b949e;
@@ -69,7 +67,6 @@
       display: flex; align-items: center; gap: 6px;
     }
     .col-header .dot { width: 8px; height: 8px; border-radius: 50%; }
-    .dot-gemma { background: #58a6ff; }
     .dot-gemini { background: #d2a8ff; }
 
     .annotated-img {
@@ -82,22 +79,11 @@
       word-break: break-word; max-height: 300px; overflow-y: auto;
     }
 
-    .instr-row { padding: 6px 0; font-size: 13px; border-bottom: 1px solid #30363d22; }
-    .instr-row:last-child { border-bottom: none; }
-    .instr-action { font-weight: 600; color: #e1e4e8; }
-    .instr-detail { color: #8b949e; font-size: 12px; margin-top: 2px; }
-    .instr-conf {
-      display: inline-block; font-size: 10px; padding: 1px 6px; border-radius: 3px;
-      font-weight: 600; margin-left: 8px; vertical-align: middle;
-    }
-    .instr-conf.conf-high { background: #23883040; color: #3fb950; border: 1px solid #23883060; }
-    .instr-conf.conf-medium { background: #d29a2840; color: #d29922; border: 1px solid #d29a2860; }
-    .instr-conf.conf-low { background: #da363330; color: #f85149; border: 1px solid #da363360; }
-
     .detection-summary { background: #0d1117; border: 1px solid #30363d; border-radius: 6px; padding: 12px; }
     .detection-summary h4 { font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px; color: #8b949e; margin-bottom: 8px; }
 
     .no-results { color: #484f58; font-style: italic; font-size: 13px; padding: 8px 0; }
+    .error-msg { color: #f85149; font-size: 13px; padding: 8px 0; }
 
     .lightbox { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: #000000ee; z-index: 1000; justify-content: center; align-items: center; cursor: zoom-out; }
     .lightbox.active { display: flex; }
@@ -118,7 +104,7 @@
   <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;">
     <div>
       <h1>AR Enhanced Delivery Instructions - Model Comparison</h1>
-      <p>Gemma 3n E4B-IT (text) | Gemini 3 Pro Image Preview (visual) &mdash; Visual Delivery Guidance | DPD/Geopost Street Analytics</p>
+      <p>Gemini 3 Pro Image Preview &mdash; Visual Delivery Guidance | DPD/Geopost Street Analytics</p>
       <div class="nav-links"><a href="/">&larr; Home</a> &nbsp;|&nbsp; <a href="/road-damage">Road Damage</a> &nbsp;|&nbsp; <a href="/shop-hours">Shop Hours</a> &nbsp;|&nbsp; <a href="/parking">Parking</a> &nbsp;|&nbsp; <a href="/addresses">Addresses</a> &nbsp;|&nbsp; <a href="/traffic">Traffic</a></div>
     </div>
     <button class="analyze-btn" id="analyze-all-btn" onclick="analyzeAll()">
@@ -202,60 +188,15 @@ function buildCard(card) {
     <div class="image-preview">
       <img src="${imgSrc}" alt="${card.location}" onclick="openLightbox('${card.id}')">
     </div>
-    <div class="two-col">
-      <div>
-        <div class="col-header"><span class="dot dot-gemma"></span> Gemma 3n E4B-IT (Text)</div>
-        <div id="gemma-results-${card.id}">
-          <div class="detection-summary" style="opacity:0.5;">
-            <h4>Delivery Instructions</h4>
-            <div class="no-results">Click "Analyze" to run</div>
-          </div>
-        </div>
-      </div>
-      <div>
-        <div class="col-header"><span class="dot dot-gemini"></span> Gemini 3 Pro Image Preview (Visual)</div>
-        <div id="gemini-results-${card.id}">
-          <div class="detection-summary" style="opacity:0.5;">
-            <h4>AI-Annotated Image</h4>
-            <div class="no-results">Click "Analyze" to run</div>
-          </div>
+    <div class="result-section">
+      <div class="col-header"><span class="dot dot-gemini"></span> Gemini 3 Pro Image Preview</div>
+      <div id="gemini-results-${card.id}">
+        <div class="detection-summary" style="opacity:0.5;">
+          <h4>AI-Annotated Image</h4>
+          <div class="no-results">Click "Analyze" to run</div>
         </div>
       </div>
     </div>
-  </div>`;
-}
-
-function renderGemmaResults(imageId, modelResult, containerId) {
-  const el = document.getElementById(containerId);
-  if (!el) return;
-
-  if (modelResult.status === 'error') {
-    el.innerHTML = `<div class="detection-summary"><h4>Delivery Instructions</h4>
-      <div class="instr-row" style="color:#f85149;">Error: ${modelResult.error}</div></div>`;
-    return;
-  }
-
-  const parsed = modelResult.result || {};
-  const instructions = parsed.instructions || [];
-
-  let rows = '';
-  if (instructions.length === 0) {
-    rows = '<div class="no-results">No instructions generated</div>';
-  } else {
-    rows = instructions.map((inst, idx) => {
-      const conf = (inst.confidence || 'medium').toLowerCase();
-      const confCls = conf === 'high' ? 'conf-high' : conf === 'low' ? 'conf-low' : 'conf-medium';
-      const confLabel = conf.charAt(0).toUpperCase() + conf.slice(1);
-      return `<div class="instr-row">
-        <div class="instr-action">${idx + 1}. ${inst.action || 'Unknown'}<span class="instr-conf ${confCls}">${confLabel}</span></div>
-        <div class="instr-detail">${inst.detail || ''}</div>
-      </div>`;
-    }).join('');
-  }
-
-  el.innerHTML = `<div class="detection-summary">
-    <h4>Delivery Instructions <span style="font-size:11px;color:#8b949e;font-weight:400;">(${instructions.length} steps)</span></h4>
-    ${rows}
   </div>`;
 }
 
@@ -302,11 +243,8 @@ function getPromptForCard(card) {
 }
 
 async function analyzeImage(imageId) {
-  ['gemma', 'gemini'].forEach(m => {
-    const label = m === 'gemma' ? 'Delivery Instructions' : 'AI-Annotated Image';
-    document.getElementById(`${m}-results-${imageId}`).innerHTML =
-      `<div class="detection-summary"><h4>${label}</h4><div class="instr-row" style="color:#8b949e;">Running...</div></div>`;
-  });
+  document.getElementById(`gemini-results-${imageId}`).innerHTML =
+    `<div class="detection-summary"><h4>AI-Annotated Image</h4><div class="instr-row" style="color:#8b949e;">Running...</div></div>`;
 
   const card = imageCards.find(c => c.id === imageId);
   const prompt = getPromptForCard(card);
@@ -318,15 +256,11 @@ async function analyzeImage(imageId) {
       body: JSON.stringify({ image_id: imageId, prompt: prompt })
     });
     const data = await resp.json();
-    renderGemmaResults(imageId, data.gemma, `gemma-results-${imageId}`);
     renderGeminiResults(imageId, data.gemini, `gemini-results-${imageId}`);
     saveResult('delivery', imageId, data);
   } catch (err) {
-    ['gemma', 'gemini'].forEach(m => {
-      const label = m === 'gemma' ? 'Delivery Instructions' : 'AI-Annotated Image';
-      document.getElementById(`${m}-results-${imageId}`).innerHTML =
-        `<div class="detection-summary"><h4>${label}</h4><div class="instr-row" style="color:#f85149;">Request failed: ${err.message}</div></div>`;
-    });
+    document.getElementById(`gemini-results-${imageId}`).innerHTML =
+      `<div class="detection-summary"><h4>AI-Annotated Image</h4><div class="instr-row" style="color:#f85149;">Request failed: ${err.message}</div></div>`;
   }
 }
 
@@ -393,7 +327,6 @@ container.innerHTML = imageCards.map(buildCard).join('');
 const cached = loadResults('delivery');
 Object.keys(cached).forEach(imageId => {
   const data = cached[imageId];
-  if (data.gemma) renderGemmaResults(imageId, data.gemma, `gemma-results-${imageId}`);
   if (data.gemini) renderGeminiResults(imageId, data.gemini, `gemini-results-${imageId}`);
 });
 </script>

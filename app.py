@@ -117,22 +117,6 @@ TRAFFIC_PROMPT = (
     "Each element must include type, description, and impact."
 )
 
-DELIVERY_PROMPT_GEMMA = (
-    "You are an AR delivery assistant AI analyzing a street-level image to help "
-    "a DPD delivery driver find the exact delivery location.\n\n"
-    "The customer left the following delivery note:\n"
-    "\"{delivery_note}\"\n\n"
-    "Analyze the image and provide step-by-step visual instructions for the driver "
-    "to find the delivery location.\n\n"
-    "For each instruction step, provide:\n"
-    "- action: what the driver should do (e.g. \"Look for the blue storefront\")\n"
-    "- detail: additional context or landmarks\n"
-    "- confidence: how confident you are this matches the note "
-    "(\"high\", \"medium\", \"low\")\n\n"
-    "Return ONLY a JSON object (no markdown fences) with an \"instructions\" array. "
-    "Each element must include action, detail, and confidence."
-)
-
 DELIVERY_PROMPT_IMAGE = (
     "You are an AR delivery assistant AI. A DPD delivery driver needs to find "
     "the exact delivery location in this street-level image.\n\n"
@@ -640,30 +624,6 @@ def call_gemini_traffic(image_id, token, img_data, prompt=None):
         return {"status": "error", "error": str(e), "result": {"restrictions": []}}
 
 
-def call_gemma_delivery(image_id, token, img_data, prompt=None):
-    """Call Gemma 3n for delivery instruction detection (text only)."""
-    try:
-        img_b64 = base64.b64encode(img_data).decode()
-        payload = {
-            "model": "google/gemma-3n-E4B-it",
-            "messages": [{"role": "user", "content": [
-                {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{img_b64}"}},
-                {"type": "text", "text": prompt or DELIVERY_PROMPT_GEMMA},
-            ]}],
-            "max_tokens": 2000, "temperature": 0,
-        }
-        resp = http_requests.post(GEMMA_ENDPOINT, headers={
-            "Authorization": f"Bearer {token}", "Content-Type": "application/json",
-        }, json=payload, timeout=120)
-        resp.raise_for_status()
-        data = resp.json()
-        raw_text = data["choices"][0]["message"]["content"]
-        parsed = parse_generic_json(raw_text, "instructions")
-        return {"status": "ok", "result": parsed, "raw": raw_text}
-    except Exception as e:
-        return {"status": "error", "error": str(e), "result": {"instructions": []}}
-
-
 def call_gemini_delivery(image_id, token, img_data, prompt=None):
     """Call Gemini 3 Pro Image Preview to draw annotations on the image."""
     try:
@@ -863,16 +823,9 @@ def analyze_delivery():
 
     token = get_access_token()
     img_data = download_delivery_image(image_id)
+    gemini_result = call_gemini_delivery(image_id, token, img_data, prompt)
 
-    with ThreadPoolExecutor(max_workers=2) as executor:
-        gemma_future = executor.submit(call_gemma_delivery, image_id, token, img_data, prompt)
-        gemini_future = executor.submit(call_gemini_delivery, image_id, token, img_data, prompt)
-        gemma_result = gemma_future.result()
-        gemini_result = gemini_future.result()
-
-    return jsonify(
-        {"image_id": image_id, "gemma": gemma_result, "gemini": gemini_result}
-    )
+    return jsonify({"image_id": image_id, "gemini": gemini_result})
 
 
 @app.route("/analyze-custom", methods=["POST"])
