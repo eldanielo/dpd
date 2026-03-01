@@ -73,12 +73,6 @@
       width: 100%; border-radius: 6px; border: 1px solid #30363d; display: block;
       margin-bottom: 12px; cursor: zoom-in;
     }
-    .ai-text {
-      background: #0d1117; border: 1px solid #30363d; border-radius: 6px; padding: 12px;
-      font-size: 13px; color: #c9d1d9; line-height: 1.6; white-space: pre-wrap;
-      word-break: break-word; max-height: 300px; overflow-y: auto;
-    }
-
     .detection-summary { background: #0d1117; border: 1px solid #30363d; border-radius: 6px; padding: 12px; }
     .detection-summary h4 { font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px; color: #8b949e; margin-bottom: 8px; }
 
@@ -145,32 +139,32 @@ const imageCards = [
   {
     id: "paris_marais_delivery",
     location: "Paris, Le Marais",
-    delivery_note: "Please deliver to the dark blue shop 'Couleur Chanvre'. If closed, leave the package at the small blue door to the right of the shop, between the two storefronts."
+    delivery_note: "Please deliver to Couleur Chanvre, the shop with the dark blue facade. If closed, leave the package at the small entrance door just to the right of the shopfront."
   },
   {
     id: "london_chelsea",
     location: "London, Chelsea",
-    delivery_note: "I live in the green house with the dark front door. There's usually a Tesla parked outside. Leave the parcel behind the black gate on the right side if I'm not home."
+    delivery_note: "Green house with the black front door. If I'm not home, please leave the parcel in the porch area or with the neighbor at the white building next door."
   },
   {
     id: "berlin_kreuzberg",
     location: "Berlin, Kreuzberg",
-    delivery_note: "Deliver to the building with the large brown wooden entrance door. Ring the bell for 'Hoffmann', 3rd floor left. If no answer, leave the package with the ground floor neighbor."
+    delivery_note: "Building with the large brown wooden entrance door. Ring the bell for Hoffmann, 3rd floor. If no answer, leave with the ground floor neighbor."
   },
   {
     id: "vienna_spittelberg",
     location: "Vienna, Spittelberg",
-    delivery_note: "My gallery is the one with the green-painted facade and arched windows. Look for the sign 'Bucherei' on the corner. Please hand the package to the staff inside."
+    delivery_note: "My shop has the green-painted facade with the arched windows. Please hand the package to the staff inside. If closed, leave it at the door."
   },
   {
     id: "prague_mala_strana",
     location: "Prague, Mala Strana",
-    delivery_note: "I'm at number 12, the cream-colored building with the large arched wooden gate. It's next to the pink building. Please ring the bell or leave the parcel by the gate."
+    delivery_note: "Number 12, the cream-colored building with the large arched wooden gate next to the pink house. Please ring the bell or leave the parcel by the gate."
   },
   {
     id: "brussels_ixelles",
     location: "Brussels, Ixelles",
-    delivery_note: "My apartment is in the white building on the left side of the street, first floor with the iron balcony. Ring the top bell. If no answer, leave with the neighbor who has the white van."
+    delivery_note: "First floor apartment, the building with the iron balcony and the grey facade. Ring the top bell. If no answer, leave the package with the concierge."
   }
 ];
 
@@ -219,22 +213,12 @@ function renderGeminiResults(imageId, modelResult, containerId) {
     html += `<img class="annotated-img" id="${imgId}" src="data:${mime};base64,${modelResult.annotated_image}" alt="AI Annotated" onclick="openLightboxSrc(this.src)">`;
   }
 
-  // Show text if available
-  if (modelResult.text) {
-    html += `<div class="ai-text">${escapeHtml(modelResult.text)}</div>`;
-  }
 
   if (!html) {
     html = '<div class="no-results">No output generated</div>';
   }
 
   el.innerHTML = html;
-}
-
-function escapeHtml(text) {
-  const div = document.createElement('div');
-  div.textContent = text;
-  return div.innerHTML;
 }
 
 function getPromptForCard(card) {
