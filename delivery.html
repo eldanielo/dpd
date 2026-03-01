@@ -72,22 +72,14 @@
     .dot-gemma { background: #58a6ff; }
     .dot-gemini { background: #d2a8ff; }
 
-    .result-container { position: relative; }
-    .result-container img {
+    .annotated-img {
       width: 100%; border-radius: 6px; border: 1px solid #30363d; display: block;
+      margin-bottom: 12px; cursor: zoom-in;
     }
-    .bbox-overlay {
-      position: absolute; top: 0; left: 0; width: 100%; height: 100%;
-      pointer-events: none;
-    }
-    .bbox {
-      position: absolute; border: 2px solid #3fb950; border-radius: 3px;
-      background: #3fb95018;
-    }
-    .bbox-label {
-      position: absolute; top: -20px; left: 0; background: #3fb950;
-      color: #000; font-size: 10px; font-weight: 700; padding: 1px 6px;
-      border-radius: 3px; white-space: nowrap;
+    .ai-text {
+      background: #0d1117; border: 1px solid #30363d; border-radius: 6px; padding: 12px;
+      font-size: 13px; color: #c9d1d9; line-height: 1.6; white-space: pre-wrap;
+      word-break: break-word; max-height: 300px; overflow-y: auto;
     }
 
     .instr-row { padding: 6px 0; font-size: 13px; border-bottom: 1px solid #30363d22; }
@@ -126,7 +118,7 @@
   <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;">
     <div>
       <h1>AR Enhanced Delivery Instructions - Model Comparison</h1>
-      <p>Gemma 3n E4B-IT | Gemini 3.1 Pro &mdash; Visual Delivery Guidance | DPD/Geopost Street Analytics</p>
+      <p>Gemma 3n E4B-IT (text) | Gemini 3 Pro Image Preview (visual) &mdash; Visual Delivery Guidance | DPD/Geopost Street Analytics</p>
       <div class="nav-links"><a href="/">&larr; Home</a> &nbsp;|&nbsp; <a href="/road-damage">Road Damage</a> &nbsp;|&nbsp; <a href="/shop-hours">Shop Hours</a> &nbsp;|&nbsp; <a href="/parking">Parking</a> &nbsp;|&nbsp; <a href="/addresses">Addresses</a> &nbsp;|&nbsp; <a href="/traffic">Traffic</a></div>
     </div>
     <button class="analyze-btn" id="analyze-all-btn" onclick="analyzeAll()">
@@ -138,24 +130,19 @@
 </header>
 
 <div class="prompt-section">
-  <h3>Prompt Template (delivery note is injected per image)</h3>
-  <textarea class="prompt-box" id="prompt-editor" rows="12">You are an AR delivery assistant AI analyzing a street-level image to help a DPD delivery driver find the exact delivery location.
+  <h3>Gemini Image Prompt (delivery note is injected per image)</h3>
+  <textarea class="prompt-box" id="prompt-editor" rows="10">You are an AR delivery assistant AI. A DPD delivery driver needs to find the exact delivery location in this street-level image.
 
 The customer left the following delivery note:
 "{DELIVERY_NOTE}"
 
-Analyze the image and:
-1. Identify the exact location described in the delivery note
-2. Provide step-by-step visual instructions for the driver
-3. Draw a bounding box around the delivery target area
+Draw directly on the image to guide the driver:
+- Draw a clear arrow pointing to the delivery location
+- Circle or highlight the exact door, gate, or entrance
+- Add a short text label like "DELIVER HERE" near the target
+- If the note mentions landmarks (shops, colored doors, etc.), label those too so the driver can orient
 
-For each instruction step, provide:
-- action: what the driver should do (e.g. "Look for the blue storefront", "Walk to the brown door")
-- detail: additional context or landmarks
-- confidence: how confident you are this matches the note ("high", "medium", "low")
-- bounding_box: {xmin, ymin, xmax, ymax} as percentages (0-100) of image dimensions marking the relevant area. Only include for the primary delivery target.
-
-Return ONLY a JSON object with an "instructions" array. Each element must include action, detail, and confidence. Include bounding_box only on the step that marks the delivery location.</textarea>
+Make the annotations bold, bright, and easy to see at a glance. Use green or red colors for visibility. Return the annotated image.</textarea>
 </div>
 
 <div class="lightbox" id="lightbox" onclick="closeLightbox()">
@@ -217,7 +204,7 @@ function buildCard(card) {
     </div>
     <div class="two-col">
       <div>
-        <div class="col-header"><span class="dot dot-gemma"></span> Gemma 3n E4B-IT</div>
+        <div class="col-header"><span class="dot dot-gemma"></span> Gemma 3n E4B-IT (Text)</div>
         <div id="gemma-results-${card.id}">
           <div class="detection-summary" style="opacity:0.5;">
             <h4>Delivery Instructions</h4>
@@ -226,10 +213,10 @@ function buildCard(card) {
         </div>
       </div>
       <div>
-        <div class="col-header"><span class="dot dot-gemini"></span> Gemini 3.1 Pro</div>
+        <div class="col-header"><span class="dot dot-gemini"></span> Gemini 3 Pro Image Preview (Visual)</div>
         <div id="gemini-results-${card.id}">
           <div class="detection-summary" style="opacity:0.5;">
-            <h4>Delivery Instructions</h4>
+            <h4>AI-Annotated Image</h4>
             <div class="no-results">Click "Analyze" to run</div>
           </div>
         </div>
@@ -238,7 +225,7 @@ function buildCard(card) {
   </div>`;
 }
 
-function renderResults(imageId, modelResult, containerId) {
+function renderGemmaResults(imageId, modelResult, containerId) {
   const el = document.getElementById(containerId);
   if (!el) return;
 
@@ -251,33 +238,6 @@ function renderResults(imageId, modelResult, containerId) {
   const parsed = modelResult.result || {};
   const instructions = parsed.instructions || [];
 
-  // Check for bounding boxes
-  const bboxes = [];
-  instructions.forEach((inst, idx) => {
-    if (inst.bounding_box) {
-      bboxes.push({ ...inst.bounding_box, label: `Step ${idx + 1}` });
-    }
-  });
-
-  // Build image with bbox overlay if we have boxes
-  let imgHtml = '';
-  if (bboxes.length > 0) {
-    const imgSrc = `${IMAGE_BASE}/${imageId}.jpg`;
-    let bboxDivs = bboxes.map(bb => {
-      const left = bb.xmin || 0;
-      const top = bb.ymin || 0;
-      const width = (bb.xmax || 0) - left;
-      const height = (bb.ymax || 0) - top;
-      return `<div class="bbox" style="left:${left}%;top:${top}%;width:${width}%;height:${height}%;">
-        <span class="bbox-label">${bb.label}</span>
-      </div>`;
-    }).join('');
-    imgHtml = `<div class="result-container" style="margin-bottom:12px;">
-      <img src="${imgSrc}" alt="${imageId}">
-      <div class="bbox-overlay">${bboxDivs}</div>
-    </div>`;
-  }
-
   let rows = '';
   if (instructions.length === 0) {
     rows = '<div class="no-results">No instructions generated</div>';
@@ -286,18 +246,54 @@ function renderResults(imageId, modelResult, containerId) {
       const conf = (inst.confidence || 'medium').toLowerCase();
       const confCls = conf === 'high' ? 'conf-high' : conf === 'low' ? 'conf-low' : 'conf-medium';
       const confLabel = conf.charAt(0).toUpperCase() + conf.slice(1);
-      const hasBbox = inst.bounding_box ? ' &#127919;' : '';
       return `<div class="instr-row">
-        <div class="instr-action">${idx + 1}. ${inst.action || 'Unknown'}${hasBbox}<span class="instr-conf ${confCls}">${confLabel}</span></div>
+        <div class="instr-action">${idx + 1}. ${inst.action || 'Unknown'}<span class="instr-conf ${confCls}">${confLabel}</span></div>
         <div class="instr-detail">${inst.detail || ''}</div>
       </div>`;
     }).join('');
   }
 
-  el.innerHTML = `${imgHtml}<div class="detection-summary">
+  el.innerHTML = `<div class="detection-summary">
     <h4>Delivery Instructions <span style="font-size:11px;color:#8b949e;font-weight:400;">(${instructions.length} steps)</span></h4>
     ${rows}
   </div>`;
+}
+
+function renderGeminiResults(imageId, modelResult, containerId) {
+  const el = document.getElementById(containerId);
+  if (!el) return;
+
+  if (modelResult.status === 'error') {
+    el.innerHTML = `<div class="detection-summary"><h4>AI-Annotated Image</h4>
+      <div class="instr-row" style="color:#f85149;">Error: ${modelResult.error}</div></div>`;
+    return;
+  }
+
+  let html = '';
+
+  // Show annotated image if available
+  if (modelResult.annotated_image) {
+    const mime = modelResult.image_mime || 'image/png';
+    const imgId = `annotated-${imageId}`;
+    html += `<img class="annotated-img" id="${imgId}" src="data:${mime};base64,${modelResult.annotated_image}" alt="AI Annotated" onclick="openLightboxSrc(this.src)">`;
+  }
+
+  // Show text if available
+  if (modelResult.text) {
+    html += `<div class="ai-text">${escapeHtml(modelResult.text)}</div>`;
+  }
+
+  if (!html) {
+    html = '<div class="no-results">No output generated</div>';
+  }
+
+  el.innerHTML = html;
+}
+
+function escapeHtml(text) {
+  const div = document.createElement('div');
+  div.textContent = text;
+  return div.innerHTML;
 }
 
 function getPromptForCard(card) {
@@ -307,8 +303,9 @@ function getPromptForCard(card) {
 
 async function analyzeImage(imageId) {
   ['gemma', 'gemini'].forEach(m => {
+    const label = m === 'gemma' ? 'Delivery Instructions' : 'AI-Annotated Image';
     document.getElementById(`${m}-results-${imageId}`).innerHTML =
-      `<div class="detection-summary"><h4>Delivery Instructions</h4><div class="instr-row" style="color:#8b949e;">Running...</div></div>`;
+      `<div class="detection-summary"><h4>${label}</h4><div class="instr-row" style="color:#8b949e;">Running...</div></div>`;
   });
 
   const card = imageCards.find(c => c.id === imageId);
@@ -321,13 +318,14 @@ async function analyzeImage(imageId) {
       body: JSON.stringify({ image_id: imageId, prompt: prompt })
     });
     const data = await resp.json();
-    renderResults(imageId, data.gemma, `gemma-results-${imageId}`);
-    renderResults(imageId, data.gemini, `gemini-results-${imageId}`);
+    renderGemmaResults(imageId, data.gemma, `gemma-results-${imageId}`);
+    renderGeminiResults(imageId, data.gemini, `gemini-results-${imageId}`);
     saveResult('delivery', imageId, data);
   } catch (err) {
     ['gemma', 'gemini'].forEach(m => {
+      const label = m === 'gemma' ? 'Delivery Instructions' : 'AI-Annotated Image';
       document.getElementById(`${m}-results-${imageId}`).innerHTML =
-        `<div class="detection-summary"><h4>Delivery Instructions</h4><div class="instr-row" style="color:#f85149;">Request failed: ${err.message}</div></div>`;
+        `<div class="detection-summary"><h4>${label}</h4><div class="instr-row" style="color:#f85149;">Request failed: ${err.message}</div></div>`;
     });
   }
 }
@@ -356,6 +354,13 @@ function openLightbox(imageId) {
   const lb = document.getElementById('lightbox');
   const inner = document.getElementById('lightbox-inner');
   inner.innerHTML = `<img src="${IMAGE_BASE}/${imageId}.jpg" alt="${imageId}">`;
+  lb.classList.add('active');
+}
+
+function openLightboxSrc(src) {
+  const lb = document.getElementById('lightbox');
+  const inner = document.getElementById('lightbox-inner');
+  inner.innerHTML = `<img src="${src}" alt="Annotated">`;
   lb.classList.add('active');
 }
 
@@ -388,8 +393,8 @@ container.innerHTML = imageCards.map(buildCard).join('');
 const cached = loadResults('delivery');
 Object.keys(cached).forEach(imageId => {
   const data = cached[imageId];
-  if (data.gemma) renderResults(imageId, data.gemma, `gemma-results-${imageId}`);
-  if (data.gemini) renderResults(imageId, data.gemini, `gemini-results-${imageId}`);
+  if (data.gemma) renderGemmaResults(imageId, data.gemma, `gemma-results-${imageId}`);
+  if (data.gemini) renderGeminiResults(imageId, data.gemini, `gemini-results-${imageId}`);
 });
 </script>
 

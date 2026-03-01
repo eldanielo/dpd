@@ -22,6 +22,10 @@ GEMINI_ENDPOINT = (
     "https://aiplatform.googleapis.com/v1/projects/mineral-concord-394714"
     "/locations/global/publishers/google/models/gemini-3.1-pro-preview:generateContent"
 )
+GEMINI_IMAGE_ENDPOINT = (
+    "https://aiplatform.googleapis.com/v1/projects/mineral-concord-394714"
+    "/locations/us-central1/publishers/google/models/gemini-3-pro-image-preview:generateContent"
+)
 GCS_IMAGE_BASE = "gs://dpd-street-detection/images"
 GCS_PUBLIC_BASE = "https://storage.googleapis.com/dpd-street-detection/images"
 GCS_HOURS_IMAGE_BASE = "gs://dpd-street-detection/shop-hours"
@@ -113,25 +117,36 @@ TRAFFIC_PROMPT = (
     "Each element must include type, description, and impact."
 )
 
-DELIVERY_PROMPT = (
+DELIVERY_PROMPT_GEMMA = (
     "You are an AR delivery assistant AI analyzing a street-level image to help "
     "a DPD delivery driver find the exact delivery location.\n\n"
     "The customer left the following delivery note:\n"
     "\"{delivery_note}\"\n\n"
-    "Analyze the image and:\n"
-    "1. Identify the exact location described in the delivery note\n"
-    "2. Provide step-by-step visual instructions for the driver\n"
-    "3. Draw a bounding box around the delivery target area\n\n"
+    "Analyze the image and provide step-by-step visual instructions for the driver "
+    "to find the delivery location.\n\n"
     "For each instruction step, provide:\n"
-    "- action: what the driver should do\n"
+    "- action: what the driver should do (e.g. \"Look for the blue storefront\")\n"
     "- detail: additional context or landmarks\n"
     "- confidence: how confident you are this matches the note "
-    "(\"high\", \"medium\", \"low\")\n"
-    "- bounding_box: {{xmin, ymin, xmax, ymax}} as percentages (0-100) of image "
-    "dimensions marking the relevant area. Only include for the primary delivery target.\n\n"
+    "(\"high\", \"medium\", \"low\")\n\n"
     "Return ONLY a JSON object (no markdown fences) with an \"instructions\" array. "
-    "Each element must include action, detail, and confidence. "
-    "Include bounding_box only on the step that marks the delivery location."
+    "Each element must include action, detail, and confidence."
+)
+
+DELIVERY_PROMPT_IMAGE = (
+    "You are an AR delivery assistant AI. A DPD delivery driver needs to find "
+    "the exact delivery location in this street-level image.\n\n"
+    "The customer left the following delivery note:\n"
+    "\"{delivery_note}\"\n\n"
+    "Draw directly on the image to guide the driver:\n"
+    "- Draw a clear arrow pointing to the delivery location\n"
+    "- Circle or highlight the exact door, gate, or entrance\n"
+    "- Add a short text label like \"DELIVER HERE\" near the target\n"
+    "- If the note mentions landmarks (shops, colored doors, etc.), "
+    "label those too so the driver can orient\n\n"
+    "Make the annotations bold, bright, and easy to see at a glance. "
+    "Use green or red colors for visibility. "
+    "Return the annotated image."
 )
 
 
@@ -625,49 +640,15 @@ def call_gemini_traffic(image_id, token, img_data, prompt=None):
         return {"status": "error", "error": str(e), "result": {"restrictions": []}}
 
 
-def normalize_delivery_bboxes(parsed, img_width, img_height):
-    """Normalize bounding boxes in delivery instructions to 0-100 percentages."""
-    instructions = parsed.get("instructions", [])
-    all_vals = []
-    for inst in instructions:
-        bb = inst.get("bounding_box")
-        if bb:
-            all_vals.extend([
-                bb.get("xmin", 0), bb.get("ymin", 0),
-                bb.get("xmax", 0), bb.get("ymax", 0)
-            ])
-    if not all_vals:
-        return parsed
-    max_val = max(all_vals)
-    for inst in instructions:
-        bb = inst.get("bounding_box")
-        if not bb:
-            continue
-        if max_val > 1000 and img_width and img_height:
-            bb["xmin"] = bb.get("xmin", 0) / img_width * 100
-            bb["xmax"] = bb.get("xmax", 0) / img_width * 100
-            bb["ymin"] = bb.get("ymin", 0) / img_height * 100
-            bb["ymax"] = bb.get("ymax", 0) / img_height * 100
-        elif max_val > 100:
-            bb["xmin"] = bb.get("xmin", 0) / 10.0
-            bb["xmax"] = bb.get("xmax", 0) / 10.0
-            bb["ymin"] = bb.get("ymin", 0) / 10.0
-            bb["ymax"] = bb.get("ymax", 0) / 10.0
-        for key in ("xmin", "ymin", "xmax", "ymax"):
-            bb[key] = round(max(0, min(100, bb.get(key, 0))), 2)
-    return parsed
-
-
 def call_gemma_delivery(image_id, token, img_data, prompt=None):
-    """Call Gemma 3n for delivery instruction detection."""
+    """Call Gemma 3n for delivery instruction detection (text only)."""
     try:
         img_b64 = base64.b64encode(img_data).decode()
-        img_w, img_h = get_jpeg_dimensions(img_data)
         payload = {
             "model": "google/gemma-3n-E4B-it",
             "messages": [{"role": "user", "content": [
                 {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{img_b64}"}},
-                {"type": "text", "text": prompt or DELIVERY_PROMPT},
+                {"type": "text", "text": prompt or DELIVERY_PROMPT_GEMMA},
             ]}],
             "max_tokens": 2000, "temperature": 0,
         }
@@ -678,34 +659,53 @@ def call_gemma_delivery(image_id, token, img_data, prompt=None):
         data = resp.json()
         raw_text = data["choices"][0]["message"]["content"]
         parsed = parse_generic_json(raw_text, "instructions")
-        parsed = normalize_delivery_bboxes(parsed, img_w, img_h)
         return {"status": "ok", "result": parsed, "raw": raw_text}
     except Exception as e:
         return {"status": "error", "error": str(e), "result": {"instructions": []}}
 
 
 def call_gemini_delivery(image_id, token, img_data, prompt=None):
-    """Call Gemini 3.1 Pro for delivery instruction detection."""
+    """Call Gemini 3 Pro Image Preview to draw annotations on the image."""
     try:
-        img_w, img_h = get_jpeg_dimensions(img_data)
+        img_b64 = base64.b64encode(img_data).decode()
         payload = {
             "contents": [{"role": "user", "parts": [
-                {"fileData": {"mimeType": "image/jpeg", "fileUri": f"{GCS_DELIVERY_IMAGE_BASE}/{image_id}.jpg"}},
-                {"text": prompt or DELIVERY_PROMPT},
+                {"inlineData": {"mimeType": "image/jpeg", "data": img_b64}},
+                {"text": prompt or DELIVERY_PROMPT_IMAGE},
             ]}],
-            "generationConfig": {"maxOutputTokens": 2000, "temperature": 0},
+            "generationConfig": {
+                "responseModalities": ["TEXT", "IMAGE"],
+                "maxOutputTokens": 4096,
+                "temperature": 0.2,
+            },
         }
-        resp = http_requests.post(GEMINI_ENDPOINT, headers={
+        resp = http_requests.post(GEMINI_IMAGE_ENDPOINT, headers={
             "Authorization": f"Bearer {token}", "Content-Type": "application/json",
-        }, json=payload, timeout=120)
+        }, json=payload, timeout=180)
         resp.raise_for_status()
         data = resp.json()
-        raw_text = data["candidates"][0]["content"]["parts"][-1]["text"]
-        parsed = parse_generic_json(raw_text, "instructions")
-        parsed = normalize_delivery_bboxes(parsed, img_w, img_h)
-        return {"status": "ok", "result": parsed, "raw": raw_text}
+
+        # Extract text and image parts from response
+        parts = data["candidates"][0]["content"]["parts"]
+        text_parts = []
+        image_b64 = None
+        image_mime = None
+        for part in parts:
+            if "text" in part:
+                text_parts.append(part["text"])
+            elif "inlineData" in part:
+                image_b64 = part["inlineData"]["data"]
+                image_mime = part["inlineData"].get("mimeType", "image/png")
+
+        return {
+            "status": "ok",
+            "annotated_image": image_b64,
+            "image_mime": image_mime,
+            "text": "\n".join(text_parts) if text_parts else "",
+            "raw": "\n".join(text_parts) if text_parts else "(image only)",
+        }
     except Exception as e:
-        return {"status": "error", "error": str(e), "result": {"instructions": []}}
+        return {"status": "error", "error": str(e)}
 
 
 @app.route("/")
