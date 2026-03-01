@@ -219,6 +219,7 @@ async function analyzeImage(imageId) {
     const data = await resp.json();
     renderShopResults(imageId, data.gemma, `gemma-results-${imageId}`);
     renderShopResults(imageId, data.gemini, `gemini-results-${imageId}`);
+    saveResult('shop-hours', imageId, data);
   } catch (err) {
     ['gemma', 'gemini'].forEach(m => {
       document.getElementById(`${m}-results-${imageId}`).innerHTML =
@@ -260,8 +261,32 @@ function closeLightbox() {
 
 document.addEventListener('keydown', e => { if (e.key === 'Escape') closeLightbox(); });
 
+function saveResult(page, imageId, data) {
+  try {
+    const cache = JSON.parse(localStorage.getItem('dpd-cache') || '{}');
+    if (!cache[page]) cache[page] = {};
+    cache[page][imageId] = data;
+    localStorage.setItem('dpd-cache', JSON.stringify(cache));
+  } catch (e) {}
+}
+
+function loadResults(page) {
+  try {
+    const cache = JSON.parse(localStorage.getItem('dpd-cache') || '{}');
+    return cache[page] || {};
+  } catch (e) { return {}; }
+}
+
 const container = document.getElementById('cards-container');
 container.innerHTML = imageCards.map(buildCard).join('');
+
+// Restore cached results
+const cached = loadResults('shop-hours');
+Object.keys(cached).forEach(imageId => {
+  const data = cached[imageId];
+  if (data.gemma) renderShopResults(imageId, data.gemma, `gemma-results-${imageId}`);
+  if (data.gemini) renderShopResults(imageId, data.gemini, `gemini-results-${imageId}`);
+});
 </script>
 
 </body>

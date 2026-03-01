@@ -218,6 +218,7 @@ async function analyzeImage(imageId) {
     const data = await resp.json();
     renderResults(imageId, data.gemma, `gemma-results-${imageId}`);
     renderResults(imageId, data.gemini, `gemini-results-${imageId}`);
+    saveResult('traffic', imageId, data);
   } catch (err) {
     ['gemma', 'gemini'].forEach(m => {
       document.getElementById(`${m}-results-${imageId}`).innerHTML =
@@ -259,8 +260,32 @@ function closeLightbox() {
 
 document.addEventListener('keydown', e => { if (e.key === 'Escape') closeLightbox(); });
 
+function saveResult(page, imageId, data) {
+  try {
+    const cache = JSON.parse(localStorage.getItem('dpd-cache') || '{}');
+    if (!cache[page]) cache[page] = {};
+    cache[page][imageId] = data;
+    localStorage.setItem('dpd-cache', JSON.stringify(cache));
+  } catch (e) {}
+}
+
+function loadResults(page) {
+  try {
+    const cache = JSON.parse(localStorage.getItem('dpd-cache') || '{}');
+    return cache[page] || {};
+  } catch (e) { return {}; }
+}
+
 const container = document.getElementById('cards-container');
 container.innerHTML = imageCards.map(buildCard).join('');
+
+// Restore cached results
+const cached = loadResults('traffic');
+Object.keys(cached).forEach(imageId => {
+  const data = cached[imageId];
+  if (data.gemma) renderResults(imageId, data.gemma, `gemma-results-${imageId}`);
+  if (data.gemini) renderResults(imageId, data.gemini, `gemini-results-${imageId}`);
+});
 </script>
 
 </body>
