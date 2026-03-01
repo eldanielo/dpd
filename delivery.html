@@ -1,0 +1,397 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AR Enhanced Delivery Instructions - Model Comparison</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: 'Segoe UI', system-ui, sans-serif; background: #0f1117; color: #e1e4e8; }
+
+    header { background: #161b22; border-bottom: 1px solid #30363d; padding: 20px 40px; }
+    header h1 { font-size: 22px; font-weight: 600; }
+    header p { color: #8b949e; margin-top: 4px; font-size: 14px; }
+
+    .nav-links { margin-top: 8px; }
+    .nav-links a { color: #58a6ff; font-size: 13px; text-decoration: none; }
+    .nav-links a:hover { text-decoration: underline; }
+
+    .prompt-section { background: #161b22; border: 1px solid #30363d; border-radius: 8px; margin: 24px 40px 0; padding: 20px; }
+    .prompt-section h3 { font-size: 13px; text-transform: uppercase; letter-spacing: 0.5px; color: #8b949e; margin-bottom: 10px; }
+    .prompt-box { background: #0d1117; border: 1px solid #30363d; border-radius: 6px; padding: 14px 16px; font-family: 'SF Mono', 'Fira Code', monospace; font-size: 13px; line-height: 1.6; color: #c9d1d9; white-space: pre-wrap; width: 100%; resize: vertical; }
+    .prompt-box:focus { outline: none; border-color: #58a6ff; }
+
+    .cards-container { padding: 24px 40px; display: flex; flex-direction: column; gap: 32px; }
+
+    .image-card { background: #161b22; border: 1px solid #30363d; border-radius: 10px; overflow: hidden; }
+    .image-card-header { padding: 16px 20px; border-bottom: 1px solid #30363d; display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+    .image-card-header h2 { font-size: 16px; font-weight: 600; margin-right: auto; }
+
+    .analyze-btn {
+      background: #238636; color: #fff; border: 1px solid #2ea04366; border-radius: 6px;
+      padding: 6px 16px; font-size: 13px; font-weight: 600; cursor: pointer;
+      display: inline-flex; align-items: center; gap: 6px; transition: background 0.15s;
+    }
+    .analyze-btn:hover { background: #2ea043; }
+    .analyze-btn:disabled { background: #21262d; color: #484f58; border-color: #30363d; cursor: not-allowed; }
+    .analyze-btn .spinner {
+      width: 14px; height: 14px; border: 2px solid #ffffff44; border-top-color: #fff;
+      border-radius: 50%; animation: spin 0.6s linear infinite; display: none;
+    }
+    .analyze-btn.loading .spinner { display: inline-block; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .delivery-note {
+      padding: 16px 20px; border-bottom: 1px solid #30363d;
+      background: #0d111788;
+    }
+    .delivery-note-label {
+      font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; color: #8b949e;
+      margin-bottom: 6px; display: flex; align-items: center; gap: 6px;
+    }
+    .delivery-note-label .icon { font-size: 14px; }
+    .delivery-note-text {
+      font-size: 14px; color: #f0e68c; font-style: italic; line-height: 1.5;
+      padding: 10px 14px; background: #1c1f26; border: 1px solid #30363d;
+      border-radius: 6px; border-left: 3px solid #d29922;
+    }
+
+    .image-preview { padding: 16px; border-bottom: 1px solid #30363d; }
+    .image-preview img { width: 100%; max-width: 640px; border-radius: 6px; border: 1px solid #30363d; display: block; cursor: zoom-in; }
+
+    .two-col { display: grid; grid-template-columns: 1fr 1fr; }
+    .two-col > div { padding: 16px; border-right: 1px solid #30363d; }
+    .two-col > div:last-child { border-right: none; }
+
+    .col-header {
+      font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px; color: #8b949e;
+      margin-bottom: 10px; padding-bottom: 6px; border-bottom: 1px solid #30363d;
+      display: flex; align-items: center; gap: 6px;
+    }
+    .col-header .dot { width: 8px; height: 8px; border-radius: 50%; }
+    .dot-gemma { background: #58a6ff; }
+    .dot-gemini { background: #d2a8ff; }
+
+    .result-container { position: relative; }
+    .result-container img {
+      width: 100%; border-radius: 6px; border: 1px solid #30363d; display: block;
+    }
+    .bbox-overlay {
+      position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+      pointer-events: none;
+    }
+    .bbox {
+      position: absolute; border: 2px solid #3fb950; border-radius: 3px;
+      background: #3fb95018;
+    }
+    .bbox-label {
+      position: absolute; top: -20px; left: 0; background: #3fb950;
+      color: #000; font-size: 10px; font-weight: 700; padding: 1px 6px;
+      border-radius: 3px; white-space: nowrap;
+    }
+
+    .instr-row { padding: 6px 0; font-size: 13px; border-bottom: 1px solid #30363d22; }
+    .instr-row:last-child { border-bottom: none; }
+    .instr-action { font-weight: 600; color: #e1e4e8; }
+    .instr-detail { color: #8b949e; font-size: 12px; margin-top: 2px; }
+    .instr-conf {
+      display: inline-block; font-size: 10px; padding: 1px 6px; border-radius: 3px;
+      font-weight: 600; margin-left: 8px; vertical-align: middle;
+    }
+    .instr-conf.conf-high { background: #23883040; color: #3fb950; border: 1px solid #23883060; }
+    .instr-conf.conf-medium { background: #d29a2840; color: #d29922; border: 1px solid #d29a2860; }
+    .instr-conf.conf-low { background: #da363330; color: #f85149; border: 1px solid #da363360; }
+
+    .detection-summary { background: #0d1117; border: 1px solid #30363d; border-radius: 6px; padding: 12px; }
+    .detection-summary h4 { font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px; color: #8b949e; margin-bottom: 8px; }
+
+    .no-results { color: #484f58; font-style: italic; font-size: 13px; padding: 8px 0; }
+
+    .lightbox { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: #000000ee; z-index: 1000; justify-content: center; align-items: center; cursor: zoom-out; }
+    .lightbox.active { display: flex; }
+    .lightbox-inner { position: relative; max-width: 95vw; max-height: 95vh; }
+    .lightbox-inner img { max-width: 95vw; max-height: 95vh; border-radius: 8px; }
+    .lightbox-close { position: fixed; top: 20px; right: 30px; color: #fff; font-size: 32px; cursor: pointer; z-index: 1001; }
+
+    @media (max-width: 900px) {
+      .two-col { grid-template-columns: 1fr; }
+      .two-col > div { border-right: none; border-bottom: 1px solid #30363d; }
+      .two-col > div:last-child { border-bottom: none; }
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;">
+    <div>
+      <h1>AR Enhanced Delivery Instructions - Model Comparison</h1>
+      <p>Gemma 3n E4B-IT | Gemini 3.1 Pro &mdash; Visual Delivery Guidance | DPD/Geopost Street Analytics</p>
+      <div class="nav-links"><a href="/">&larr; Home</a> &nbsp;|&nbsp; <a href="/road-damage">Road Damage</a> &nbsp;|&nbsp; <a href="/shop-hours">Shop Hours</a> &nbsp;|&nbsp; <a href="/parking">Parking</a> &nbsp;|&nbsp; <a href="/addresses">Addresses</a> &nbsp;|&nbsp; <a href="/traffic">Traffic</a></div>
+    </div>
+    <button class="analyze-btn" id="analyze-all-btn" onclick="analyzeAll()">
+      <span class="spinner"></span>
+      <span>Analyze All Images</span>
+    </button>
+  </div>
+  <div id="analyze-progress" style="margin-top:8px;font-size:13px;color:#8b949e;display:none;"></div>
+</header>
+
+<div class="prompt-section">
+  <h3>Prompt Template (delivery note is injected per image)</h3>
+  <textarea class="prompt-box" id="prompt-editor" rows="12">You are an AR delivery assistant AI analyzing a street-level image to help a DPD delivery driver find the exact delivery location.
+
+The customer left the following delivery note:
+"{DELIVERY_NOTE}"
+
+Analyze the image and:
+1. Identify the exact location described in the delivery note
+2. Provide step-by-step visual instructions for the driver
+3. Draw a bounding box around the delivery target area
+
+For each instruction step, provide:
+- action: what the driver should do (e.g. "Look for the blue storefront", "Walk to the brown door")
+- detail: additional context or landmarks
+- confidence: how confident you are this matches the note ("high", "medium", "low")
+- bounding_box: {xmin, ymin, xmax, ymax} as percentages (0-100) of image dimensions marking the relevant area. Only include for the primary delivery target.
+
+Return ONLY a JSON object with an "instructions" array. Each element must include action, detail, and confidence. Include bounding_box only on the step that marks the delivery location.</textarea>
+</div>
+
+<div class="lightbox" id="lightbox" onclick="closeLightbox()">
+  <span class="lightbox-close">&times;</span>
+  <div class="lightbox-inner" id="lightbox-inner"></div>
+</div>
+
+<div class="cards-container" id="cards-container"></div>
+
+<script>
+const IMAGE_BASE = 'https://storage.googleapis.com/dpd-street-detection/delivery';
+
+const imageCards = [
+  {
+    id: "paris_marais_delivery",
+    location: "Paris, Le Marais",
+    delivery_note: "Please deliver to the dark blue shop 'Couleur Chanvre'. If closed, leave the package at the small blue door to the right of the shop, between the two storefronts."
+  },
+  {
+    id: "london_chelsea",
+    location: "London, Chelsea",
+    delivery_note: "I live in the green house with the dark front door. There's usually a Tesla parked outside. Leave the parcel behind the black gate on the right side if I'm not home."
+  },
+  {
+    id: "berlin_kreuzberg",
+    location: "Berlin, Kreuzberg",
+    delivery_note: "Deliver to the building with the large brown wooden entrance door. Ring the bell for 'Hoffmann', 3rd floor left. If no answer, leave the package with the ground floor neighbor."
+  },
+  {
+    id: "vienna_spittelberg",
+    location: "Vienna, Spittelberg",
+    delivery_note: "My gallery is the one with the green-painted facade and arched windows. Look for the sign 'Bucherei' on the corner. Please hand the package to the staff inside."
+  },
+  {
+    id: "prague_mala_strana",
+    location: "Prague, Mala Strana",
+    delivery_note: "I'm at number 12, the cream-colored building with the large arched wooden gate. It's next to the pink building. Please ring the bell or leave the parcel by the gate."
+  },
+  {
+    id: "brussels_ixelles",
+    location: "Brussels, Ixelles",
+    delivery_note: "My apartment is in the white building on the left side of the street, first floor with the iron balcony. Ring the top bell. If no answer, leave with the neighbor who has the white van."
+  }
+];
+
+function buildCard(card) {
+  const imgSrc = `${IMAGE_BASE}/${card.id}.jpg`;
+  return `
+  <div class="image-card" id="card-${card.id}">
+    <div class="image-card-header">
+      <h2>${card.location}</h2>
+    </div>
+    <div class="delivery-note">
+      <div class="delivery-note-label"><span class="icon">&#128230;</span> Customer Delivery Note</div>
+      <div class="delivery-note-text">${card.delivery_note}</div>
+    </div>
+    <div class="image-preview">
+      <img src="${imgSrc}" alt="${card.location}" onclick="openLightbox('${card.id}')">
+    </div>
+    <div class="two-col">
+      <div>
+        <div class="col-header"><span class="dot dot-gemma"></span> Gemma 3n E4B-IT</div>
+        <div id="gemma-results-${card.id}">
+          <div class="detection-summary" style="opacity:0.5;">
+            <h4>Delivery Instructions</h4>
+            <div class="no-results">Click "Analyze" to run</div>
+          </div>
+        </div>
+      </div>
+      <div>
+        <div class="col-header"><span class="dot dot-gemini"></span> Gemini 3.1 Pro</div>
+        <div id="gemini-results-${card.id}">
+          <div class="detection-summary" style="opacity:0.5;">
+            <h4>Delivery Instructions</h4>
+            <div class="no-results">Click "Analyze" to run</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>`;
+}
+
+function renderResults(imageId, modelResult, containerId) {
+  const el = document.getElementById(containerId);
+  if (!el) return;
+
+  if (modelResult.status === 'error') {
+    el.innerHTML = `<div class="detection-summary"><h4>Delivery Instructions</h4>
+      <div class="instr-row" style="color:#f85149;">Error: ${modelResult.error}</div></div>`;
+    return;
+  }
+
+  const parsed = modelResult.result || {};
+  const instructions = parsed.instructions || [];
+
+  // Check for bounding boxes
+  const bboxes = [];
+  instructions.forEach((inst, idx) => {
+    if (inst.bounding_box) {
+      bboxes.push({ ...inst.bounding_box, label: `Step ${idx + 1}` });
+    }
+  });
+
+  // Build image with bbox overlay if we have boxes
+  let imgHtml = '';
+  if (bboxes.length > 0) {
+    const imgSrc = `${IMAGE_BASE}/${imageId}.jpg`;
+    let bboxDivs = bboxes.map(bb => {
+      const left = bb.xmin || 0;
+      const top = bb.ymin || 0;
+      const width = (bb.xmax || 0) - left;
+      const height = (bb.ymax || 0) - top;
+      return `<div class="bbox" style="left:${left}%;top:${top}%;width:${width}%;height:${height}%;">
+        <span class="bbox-label">${bb.label}</span>
+      </div>`;
+    }).join('');
+    imgHtml = `<div class="result-container" style="margin-bottom:12px;">
+      <img src="${imgSrc}" alt="${imageId}">
+      <div class="bbox-overlay">${bboxDivs}</div>
+    </div>`;
+  }
+
+  let rows = '';
+  if (instructions.length === 0) {
+    rows = '<div class="no-results">No instructions generated</div>';
+  } else {
+    rows = instructions.map((inst, idx) => {
+      const conf = (inst.confidence || 'medium').toLowerCase();
+      const confCls = conf === 'high' ? 'conf-high' : conf === 'low' ? 'conf-low' : 'conf-medium';
+      const confLabel = conf.charAt(0).toUpperCase() + conf.slice(1);
+      const hasBbox = inst.bounding_box ? ' &#127919;' : '';
+      return `<div class="instr-row">
+        <div class="instr-action">${idx + 1}. ${inst.action || 'Unknown'}${hasBbox}<span class="instr-conf ${confCls}">${confLabel}</span></div>
+        <div class="instr-detail">${inst.detail || ''}</div>
+      </div>`;
+    }).join('');
+  }
+
+  el.innerHTML = `${imgHtml}<div class="detection-summary">
+    <h4>Delivery Instructions <span style="font-size:11px;color:#8b949e;font-weight:400;">(${instructions.length} steps)</span></h4>
+    ${rows}
+  </div>`;
+}
+
+function getPromptForCard(card) {
+  const template = document.getElementById('prompt-editor').value;
+  return template.replace('{DELIVERY_NOTE}', card.delivery_note);
+}
+
+async function analyzeImage(imageId) {
+  ['gemma', 'gemini'].forEach(m => {
+    document.getElementById(`${m}-results-${imageId}`).innerHTML =
+      `<div class="detection-summary"><h4>Delivery Instructions</h4><div class="instr-row" style="color:#8b949e;">Running...</div></div>`;
+  });
+
+  const card = imageCards.find(c => c.id === imageId);
+  const prompt = getPromptForCard(card);
+
+  try {
+    const resp = await fetch('/analyze-delivery', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ image_id: imageId, prompt: prompt })
+    });
+    const data = await resp.json();
+    renderResults(imageId, data.gemma, `gemma-results-${imageId}`);
+    renderResults(imageId, data.gemini, `gemini-results-${imageId}`);
+    saveResult('delivery', imageId, data);
+  } catch (err) {
+    ['gemma', 'gemini'].forEach(m => {
+      document.getElementById(`${m}-results-${imageId}`).innerHTML =
+        `<div class="detection-summary"><h4>Delivery Instructions</h4><div class="instr-row" style="color:#f85149;">Request failed: ${err.message}</div></div>`;
+    });
+  }
+}
+
+async function analyzeAll() {
+  const btn = document.getElementById('analyze-all-btn');
+  const progress = document.getElementById('analyze-progress');
+  btn.classList.add('loading');
+  btn.disabled = true;
+  btn.querySelector('span:last-child').textContent = 'Analyzing...';
+  progress.style.display = 'block';
+
+  for (let i = 0; i < imageCards.length; i++) {
+    const card = imageCards[i];
+    progress.textContent = `Analyzing image ${i + 1} of ${imageCards.length}: ${card.location} ...`;
+    await analyzeImage(card.id);
+  }
+
+  progress.textContent = `Done - all ${imageCards.length} images analyzed.`;
+  btn.classList.remove('loading');
+  btn.disabled = false;
+  btn.querySelector('span:last-child').textContent = 'Re-analyze All';
+}
+
+function openLightbox(imageId) {
+  const lb = document.getElementById('lightbox');
+  const inner = document.getElementById('lightbox-inner');
+  inner.innerHTML = `<img src="${IMAGE_BASE}/${imageId}.jpg" alt="${imageId}">`;
+  lb.classList.add('active');
+}
+
+function closeLightbox() {
+  document.getElementById('lightbox').classList.remove('active');
+}
+
+document.addEventListener('keydown', e => { if (e.key === 'Escape') closeLightbox(); });
+
+function saveResult(page, imageId, data) {
+  try {
+    const cache = JSON.parse(localStorage.getItem('dpd-cache') || '{}');
+    if (!cache[page]) cache[page] = {};
+    cache[page][imageId] = data;
+    localStorage.setItem('dpd-cache', JSON.stringify(cache));
+  } catch (e) {}
+}
+
+function loadResults(page) {
+  try {
+    const cache = JSON.parse(localStorage.getItem('dpd-cache') || '{}');
+    return cache[page] || {};
+  } catch (e) { return {}; }
+}
+
+const container = document.getElementById('cards-container');
+container.innerHTML = imageCards.map(buildCard).join('');
+
+// Restore cached results
+const cached = loadResults('delivery');
+Object.keys(cached).forEach(imageId => {
+  const data = cached[imageId];
+  if (data.gemma) renderResults(imageId, data.gemma, `gemma-results-${imageId}`);
+  if (data.gemini) renderResults(imageId, data.gemini, `gemini-results-${imageId}`);
+});
+</script>
+
+</body>
+</html>

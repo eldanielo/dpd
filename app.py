@@ -32,6 +32,8 @@ GCS_ADDRESSES_IMAGE_BASE = "gs://dpd-street-detection/addresses"
 GCS_PUBLIC_BASE_ADDRESSES = "https://storage.googleapis.com/dpd-street-detection/addresses"
 GCS_TRAFFIC_IMAGE_BASE = "gs://dpd-street-detection/traffic"
 GCS_PUBLIC_BASE_TRAFFIC = "https://storage.googleapis.com/dpd-street-detection/traffic"
+GCS_DELIVERY_IMAGE_BASE = "gs://dpd-street-detection/delivery"
+GCS_PUBLIC_BASE_DELIVERY = "https://storage.googleapis.com/dpd-street-detection/delivery"
 
 HOURS_PROMPT = (
     "You are a shop detection AI analyzing street-level images of European storefronts. "
@@ -109,6 +111,27 @@ TRAFFIC_PROMPT = (
     "\"none\")\n\n"
     "Return ONLY a JSON object (no markdown fences) with a \"restrictions\" array. "
     "Each element must include type, description, and impact."
+)
+
+DELIVERY_PROMPT = (
+    "You are an AR delivery assistant AI analyzing a street-level image to help "
+    "a DPD delivery driver find the exact delivery location.\n\n"
+    "The customer left the following delivery note:\n"
+    "\"{delivery_note}\"\n\n"
+    "Analyze the image and:\n"
+    "1. Identify the exact location described in the delivery note\n"
+    "2. Provide step-by-step visual instructions for the driver\n"
+    "3. Draw a bounding box around the delivery target area\n\n"
+    "For each instruction step, provide:\n"
+    "- action: what the driver should do\n"
+    "- detail: additional context or landmarks\n"
+    "- confidence: how confident you are this matches the note "
+    "(\"high\", \"medium\", \"low\")\n"
+    "- bounding_box: {{xmin, ymin, xmax, ymax}} as percentages (0-100) of image "
+    "dimensions marking the relevant area. Only include for the primary delivery target.\n\n"
+    "Return ONLY a JSON object (no markdown fences) with an \"instructions\" array. "
+    "Each element must include action, detail, and confidence. "
+    "Include bounding_box only on the step that marks the delivery location."
 )
 
 
@@ -437,6 +460,14 @@ def download_traffic_image(image_id):
     return resp.content
 
 
+def download_delivery_image(image_id):
+    """Download delivery image from GCS and return raw bytes."""
+    url = f"{GCS_PUBLIC_BASE_DELIVERY}/{image_id}.jpg"
+    resp = http_requests.get(url, timeout=30)
+    resp.raise_for_status()
+    return resp.content
+
+
 
 def parse_generic_json(raw_text, fallback_key):
     """Extract JSON from model response for generic detection."""
@@ -594,6 +625,89 @@ def call_gemini_traffic(image_id, token, img_data, prompt=None):
         return {"status": "error", "error": str(e), "result": {"restrictions": []}}
 
 
+def normalize_delivery_bboxes(parsed, img_width, img_height):
+    """Normalize bounding boxes in delivery instructions to 0-100 percentages."""
+    instructions = parsed.get("instructions", [])
+    all_vals = []
+    for inst in instructions:
+        bb = inst.get("bounding_box")
+        if bb:
+            all_vals.extend([
+                bb.get("xmin", 0), bb.get("ymin", 0),
+                bb.get("xmax", 0), bb.get("ymax", 0)
+            ])
+    if not all_vals:
+        return parsed
+    max_val = max(all_vals)
+    for inst in instructions:
+        bb = inst.get("bounding_box")
+        if not bb:
+            continue
+        if max_val > 1000 and img_width and img_height:
+            bb["xmin"] = bb.get("xmin", 0) / img_width * 100
+            bb["xmax"] = bb.get("xmax", 0) / img_width * 100
+            bb["ymin"] = bb.get("ymin", 0) / img_height * 100
+            bb["ymax"] = bb.get("ymax", 0) / img_height * 100
+        elif max_val > 100:
+            bb["xmin"] = bb.get("xmin", 0) / 10.0
+            bb["xmax"] = bb.get("xmax", 0) / 10.0
+            bb["ymin"] = bb.get("ymin", 0) / 10.0
+            bb["ymax"] = bb.get("ymax", 0) / 10.0
+        for key in ("xmin", "ymin", "xmax", "ymax"):
+            bb[key] = round(max(0, min(100, bb.get(key, 0))), 2)
+    return parsed
+
+
+def call_gemma_delivery(image_id, token, img_data, prompt=None):
+    """Call Gemma 3n for delivery instruction detection."""
+    try:
+        img_b64 = base64.b64encode(img_data).decode()
+        img_w, img_h = get_jpeg_dimensions(img_data)
+        payload = {
+            "model": "google/gemma-3n-E4B-it",
+            "messages": [{"role": "user", "content": [
+                {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{img_b64}"}},
+                {"type": "text", "text": prompt or DELIVERY_PROMPT},
+            ]}],
+            "max_tokens": 2000, "temperature": 0,
+        }
+        resp = http_requests.post(GEMMA_ENDPOINT, headers={
+            "Authorization": f"Bearer {token}", "Content-Type": "application/json",
+        }, json=payload, timeout=120)
+        resp.raise_for_status()
+        data = resp.json()
+        raw_text = data["choices"][0]["message"]["content"]
+        parsed = parse_generic_json(raw_text, "instructions")
+        parsed = normalize_delivery_bboxes(parsed, img_w, img_h)
+        return {"status": "ok", "result": parsed, "raw": raw_text}
+    except Exception as e:
+        return {"status": "error", "error": str(e), "result": {"instructions": []}}
+
+
+def call_gemini_delivery(image_id, token, img_data, prompt=None):
+    """Call Gemini 3.1 Pro for delivery instruction detection."""
+    try:
+        img_w, img_h = get_jpeg_dimensions(img_data)
+        payload = {
+            "contents": [{"role": "user", "parts": [
+                {"fileData": {"mimeType": "image/jpeg", "fileUri": f"{GCS_DELIVERY_IMAGE_BASE}/{image_id}.jpg"}},
+                {"text": prompt or DELIVERY_PROMPT},
+            ]}],
+            "generationConfig": {"maxOutputTokens": 2000, "temperature": 0},
+        }
+        resp = http_requests.post(GEMINI_ENDPOINT, headers={
+            "Authorization": f"Bearer {token}", "Content-Type": "application/json",
+        }, json=payload, timeout=120)
+        resp.raise_for_status()
+        data = resp.json()
+        raw_text = data["candidates"][0]["content"]["parts"][-1]["text"]
+        parsed = parse_generic_json(raw_text, "instructions")
+        parsed = normalize_delivery_bboxes(parsed, img_w, img_h)
+        return {"status": "ok", "result": parsed, "raw": raw_text}
+    except Exception as e:
+        return {"status": "error", "error": str(e), "result": {"instructions": []}}
+
+
 @app.route("/")
 def index():
     return send_from_directory(".", "index.html")
@@ -622,6 +736,11 @@ def addresses():
 @app.route("/traffic")
 def traffic():
     return send_from_directory(".", "traffic.html")
+
+
+@app.route("/delivery")
+def delivery():
+    return send_from_directory(".", "delivery.html")
 
 
 @app.route("/analyze", methods=["POST"])
@@ -726,6 +845,28 @@ def analyze_traffic():
     with ThreadPoolExecutor(max_workers=2) as executor:
         gemma_future = executor.submit(call_gemma_traffic, image_id, token, img_data, prompt)
         gemini_future = executor.submit(call_gemini_traffic, image_id, token, img_data, prompt)
+        gemma_result = gemma_future.result()
+        gemini_result = gemini_future.result()
+
+    return jsonify(
+        {"image_id": image_id, "gemma": gemma_result, "gemini": gemini_result}
+    )
+
+
+@app.route("/analyze-delivery", methods=["POST"])
+def analyze_delivery():
+    body = request.get_json()
+    image_id = body.get("image_id")
+    prompt = body.get("prompt")
+    if not image_id:
+        return jsonify({"error": "image_id required"}), 400
+
+    token = get_access_token()
+    img_data = download_delivery_image(image_id)
+
+    with ThreadPoolExecutor(max_workers=2) as executor:
+        gemma_future = executor.submit(call_gemma_delivery, image_id, token, img_data, prompt)
+        gemini_future = executor.submit(call_gemini_delivery, image_id, token, img_data, prompt)
         gemma_result = gemma_future.result()
         gemini_result = gemini_future.result()
 
