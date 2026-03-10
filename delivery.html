@@ -3,37 +3,86 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>AR Enhanced Delivery Instructions - Model Comparison</title>
+  <title>AR Delivery - Street AI Companion</title>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
-    body { font-family: 'Segoe UI', system-ui, sans-serif; background: #0f1117; color: #e1e4e8; }
+    body { font-family: 'Segoe UI', system-ui, sans-serif; background: #0a0c10; color: #e1e4e8; }
 
-    header { background: #161b22; border-bottom: 1px solid #30363d; padding: 20px 40px; }
-    header h1 { font-size: 22px; font-weight: 600; }
+    header {
+      background: linear-gradient(135deg, #0d1117 0%, #161b22 100%);
+      border-bottom: 1px solid #30363d; padding: 28px 40px;
+    }
+    header h1 { font-size: 24px; font-weight: 600; letter-spacing: -0.3px; }
     header p { color: #8b949e; margin-top: 4px; font-size: 14px; }
 
     .nav-links { margin-top: 8px; }
     .nav-links a { color: #58a6ff; font-size: 13px; text-decoration: none; }
     .nav-links a:hover { text-decoration: underline; }
 
-    .prompt-section { background: #161b22; border: 1px solid #30363d; border-radius: 8px; margin: 24px 40px 0; padding: 20px; }
-    .prompt-section h3 { font-size: 13px; text-transform: uppercase; letter-spacing: 0.5px; color: #8b949e; margin-bottom: 10px; }
-    .prompt-box { background: #0d1117; border: 1px solid #30363d; border-radius: 6px; padding: 14px 16px; font-family: 'SF Mono', 'Fira Code', monospace; font-size: 13px; line-height: 1.6; color: #c9d1d9; white-space: pre-wrap; width: 100%; resize: vertical; }
-    .prompt-box:focus { outline: none; border-color: #58a6ff; }
+    /* Hero section */
+    .hero {
+      background: linear-gradient(135deg, #1a1040 0%, #0d1117 50%, #0a1628 100%);
+      border-bottom: 1px solid #30363d;
+      padding: 40px 40px 36px;
+      text-align: center;
+    }
+    .hero-badge {
+      display: inline-block; font-size: 11px; text-transform: uppercase; letter-spacing: 1.5px;
+      color: #d2a8ff; background: #d2a8ff15; border: 1px solid #d2a8ff30;
+      padding: 4px 14px; border-radius: 20px; font-weight: 600; margin-bottom: 16px;
+    }
+    .hero h2 {
+      font-size: 28px; font-weight: 700; letter-spacing: -0.5px;
+      background: linear-gradient(135deg, #e1e4e8 0%, #d2a8ff 50%, #58a6ff 100%);
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+      background-clip: text; margin-bottom: 10px;
+    }
+    .hero p { color: #8b949e; font-size: 15px; max-width: 640px; margin: 0 auto; line-height: 1.6; }
 
-    .cards-container { padding: 24px 40px; display: flex; flex-direction: column; gap: 32px; }
+    .prompt-section {
+      background: #161b22; border: 1px solid #30363d; border-radius: 10px;
+      margin: 24px 40px 0; padding: 20px;
+    }
+    .prompt-section h3 {
+      font-size: 12px; text-transform: uppercase; letter-spacing: 1px;
+      color: #8b949e; margin-bottom: 10px; font-weight: 600;
+    }
+    .prompt-box {
+      background: #0d1117; border: 1px solid #30363d; border-radius: 8px;
+      padding: 14px 16px; font-family: 'SF Mono', 'Fira Code', monospace; font-size: 13px;
+      line-height: 1.6; color: #c9d1d9; white-space: pre-wrap; width: 100%; resize: vertical;
+    }
+    .prompt-box:focus { outline: none; border-color: #d2a8ff; box-shadow: 0 0 0 3px #d2a8ff20; }
 
-    .image-card { background: #161b22; border: 1px solid #30363d; border-radius: 10px; overflow: hidden; }
-    .image-card-header { padding: 16px 20px; border-bottom: 1px solid #30363d; display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
-    .image-card-header h2 { font-size: 16px; font-weight: 600; margin-right: auto; }
+    .cards-container { padding: 24px 40px 48px; display: flex; flex-direction: column; gap: 36px; }
+
+    .image-card {
+      background: #161b22; border: 1px solid #30363d; border-radius: 12px;
+      overflow: hidden; transition: border-color 0.2s, box-shadow 0.2s;
+    }
+    .image-card:hover { border-color: #d2a8ff40; box-shadow: 0 4px 24px #d2a8ff08; }
+
+    .image-card-header {
+      padding: 18px 24px; border-bottom: 1px solid #30363d;
+      display: flex; align-items: center; gap: 14px; flex-wrap: wrap;
+      background: linear-gradient(90deg, #161b22 0%, #1a1030 100%);
+    }
+    .image-card-header h2 { font-size: 17px; font-weight: 600; margin-right: auto; letter-spacing: -0.2px; }
+    .location-pin {
+      display: inline-flex; align-items: center; gap: 5px;
+      font-size: 12px; color: #8b949e; font-weight: 500;
+    }
+    .location-pin::before { content: ''; display: inline-block; width: 6px; height: 6px; border-radius: 50%; background: #d2a8ff; }
 
     .analyze-btn {
-      background: #238636; color: #fff; border: 1px solid #2ea04366; border-radius: 6px;
-      padding: 6px 16px; font-size: 13px; font-weight: 600; cursor: pointer;
-      display: inline-flex; align-items: center; gap: 6px; transition: background 0.15s;
+      background: linear-gradient(135deg, #7c3aed 0%, #a855f7 100%);
+      color: #fff; border: 1px solid #a855f766; border-radius: 8px;
+      padding: 8px 20px; font-size: 13px; font-weight: 600; cursor: pointer;
+      display: inline-flex; align-items: center; gap: 8px;
+      transition: all 0.2s; box-shadow: 0 2px 8px #7c3aed30;
     }
-    .analyze-btn:hover { background: #2ea043; }
-    .analyze-btn:disabled { background: #21262d; color: #484f58; border-color: #30363d; cursor: not-allowed; }
+    .analyze-btn:hover { background: linear-gradient(135deg, #6d28d9 0%, #9333ea 100%); box-shadow: 0 4px 16px #7c3aed40; transform: translateY(-1px); }
+    .analyze-btn:disabled { background: #21262d; color: #484f58; border-color: #30363d; cursor: not-allowed; box-shadow: none; transform: none; }
     .analyze-btn .spinner {
       width: 14px; height: 14px; border: 2px solid #ffffff44; border-top-color: #fff;
       border-radius: 50%; animation: spin 0.6s linear infinite; display: none;
@@ -42,39 +91,52 @@
     @keyframes spin { to { transform: rotate(360deg); } }
 
     .delivery-note {
-      padding: 16px 20px; border-bottom: 1px solid #30363d;
-      background: #0d111788;
+      padding: 20px 24px; border-bottom: 1px solid #30363d;
+      background: linear-gradient(90deg, #0d111788, #1a102888);
     }
     .delivery-note-label {
-      font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; color: #8b949e;
-      margin-bottom: 6px; display: flex; align-items: center; gap: 6px;
+      font-size: 11px; text-transform: uppercase; letter-spacing: 1px; color: #d29922;
+      margin-bottom: 8px; display: flex; align-items: center; gap: 8px; font-weight: 600;
     }
-    .delivery-note-label .icon { font-size: 14px; }
     .delivery-note-text {
-      font-size: 14px; color: #f0e68c; font-style: italic; line-height: 1.5;
-      padding: 10px 14px; background: #1c1f26; border: 1px solid #30363d;
-      border-radius: 6px; border-left: 3px solid #d29922;
+      font-size: 14px; color: #f5e6b8; line-height: 1.6;
+      padding: 14px 18px; background: #1c1f26; border: 1px solid #d29a2830;
+      border-radius: 8px; border-left: 3px solid #d29922;
+      font-style: italic;
     }
 
-    .image-preview { padding: 16px; border-bottom: 1px solid #30363d; }
-    .image-preview img { width: 100%; max-width: 640px; border-radius: 6px; border: 1px solid #30363d; display: block; cursor: zoom-in; }
+    .card-body { display: grid; grid-template-columns: 1fr 1fr; }
+    .card-body > div { padding: 20px 24px; }
+    .card-body > div:first-child { border-right: 1px solid #30363d; }
 
-    .result-section { padding: 16px; }
-
-    .col-header {
-      font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px; color: #8b949e;
-      margin-bottom: 10px; padding-bottom: 6px; border-bottom: 1px solid #30363d;
-      display: flex; align-items: center; gap: 6px;
+    .section-label {
+      font-size: 11px; text-transform: uppercase; letter-spacing: 1px; color: #8b949e;
+      margin-bottom: 12px; padding-bottom: 8px; border-bottom: 1px solid #30363d;
+      display: flex; align-items: center; gap: 8px; font-weight: 600;
     }
-    .col-header .dot { width: 8px; height: 8px; border-radius: 50%; }
+    .section-label .dot { width: 8px; height: 8px; border-radius: 50%; }
+    .dot-original { background: #58a6ff; }
     .dot-gemini { background: #d2a8ff; }
 
-    .annotated-img {
-      max-width: 480px; width: 100%; border-radius: 6px; border: 1px solid #30363d; display: block;
-      margin-bottom: 12px; cursor: zoom-in;
+    .image-preview img {
+      width: 100%; border-radius: 8px; border: 1px solid #30363d;
+      display: block; cursor: zoom-in; transition: transform 0.2s;
     }
-    .detection-summary { background: #0d1117; border: 1px solid #30363d; border-radius: 6px; padding: 12px; }
-    .detection-summary h4 { font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px; color: #8b949e; margin-bottom: 8px; }
+    .image-preview img:hover { transform: scale(1.01); }
+
+    .annotated-img {
+      width: 100%; border-radius: 8px; border: 1px solid #d2a8ff40;
+      display: block; cursor: zoom-in; transition: transform 0.2s;
+      box-shadow: 0 2px 16px #d2a8ff10;
+    }
+    .annotated-img:hover { transform: scale(1.01); }
+
+    .result-placeholder {
+      display: flex; align-items: center; justify-content: center; flex-direction: column; gap: 10px;
+      min-height: 200px; color: #484f58; font-size: 13px;
+      border: 2px dashed #30363d; border-radius: 8px;
+    }
+    .result-placeholder .ph-icon { font-size: 28px; opacity: 0.4; }
 
     .no-results { color: #484f58; font-style: italic; font-size: 13px; padding: 8px 0; }
     .error-msg { color: #f85149; font-size: 13px; padding: 8px 0; }
@@ -86,9 +148,11 @@
     .lightbox-close { position: fixed; top: 20px; right: 30px; color: #fff; font-size: 32px; cursor: pointer; z-index: 1001; }
 
     @media (max-width: 900px) {
-      .two-col { grid-template-columns: 1fr; }
-      .two-col > div { border-right: none; border-bottom: 1px solid #30363d; }
-      .two-col > div:last-child { border-bottom: none; }
+      .hero h2 { font-size: 22px; }
+      .card-body { grid-template-columns: 1fr; }
+      .card-body > div:first-child { border-right: none; border-bottom: 1px solid #30363d; }
+      .cards-container { padding: 16px 16px 32px; }
+      .hero { padding: 28px 20px 24px; }
     }
   </style>
 </head>
@@ -97,20 +161,26 @@
 <header>
   <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;">
     <div>
-      <h1>AR Enhanced Delivery Instructions - Model Comparison</h1>
-      <p>Gemini 3 Pro Image Preview &mdash; Visual Delivery Guidance | DPD/Geopost Street Analytics</p>
+      <h1>Street AI Companion <span style="font-weight:400;color:#8b949e;">/ AR Delivery</span></h1>
+      <p>Gemini 3 Pro Image Preview &mdash; Visual Delivery Guidance</p>
       <div class="nav-links"><a href="/">&larr; Home</a> &nbsp;|&nbsp; <a href="/road-damage">Road Damage</a> &nbsp;|&nbsp; <a href="/shop-hours">Shop Hours</a> &nbsp;|&nbsp; <a href="/parking">Parking</a> &nbsp;|&nbsp; <a href="/addresses">Addresses</a> &nbsp;|&nbsp; <a href="/traffic">Traffic</a> &nbsp;|&nbsp; <strong>AR Delivery</strong></div>
     </div>
     <button class="analyze-btn" id="analyze-all-btn" onclick="analyzeAll()">
       <span class="spinner"></span>
-      <span>Analyze All Images</span>
+      <span>Analyze All Scenarios</span>
     </button>
   </div>
   <div id="analyze-progress" style="margin-top:8px;font-size:13px;color:#8b949e;display:none;"></div>
 </header>
 
+<div class="hero">
+  <div class="hero-badge">Powered by Gemini Vision</div>
+  <h2>AI-Guided Delivery Navigation</h2>
+  <p>The driver's dashcam captures a street view. The AI reads the customer's delivery note and annotates the image in real-time, highlighting exactly where to deliver the parcel.</p>
+</div>
+
 <div class="prompt-section">
-  <h3>Gemini Image Prompt (delivery note is injected per image)</h3>
+  <h3>Gemini Image Prompt (delivery note is injected per scenario)</h3>
   <textarea class="prompt-box" id="prompt-editor" rows="10">You are an AR delivery assistant AI. A DPD delivery driver needs to find the exact delivery location in this street-level image.
 
 The customer left the following delivery note:
@@ -174,20 +244,26 @@ function buildCard(card) {
   <div class="image-card" id="card-${card.id}">
     <div class="image-card-header">
       <h2>${card.location}</h2>
+      <span class="location-pin">Delivery scenario</span>
     </div>
     <div class="delivery-note">
-      <div class="delivery-note-label"><span class="icon">&#128230;</span> Customer Delivery Note</div>
+      <div class="delivery-note-label">&#128230; Customer Delivery Note</div>
       <div class="delivery-note-text">${card.delivery_note}</div>
     </div>
-    <div class="image-preview">
-      <img src="${imgSrc}" alt="${card.location}" onclick="openLightbox('${card.id}')">
-    </div>
-    <div class="result-section">
-      <div class="col-header"><span class="dot dot-gemini"></span> Gemini 3 Pro Image Preview</div>
-      <div id="gemini-results-${card.id}">
-        <div class="detection-summary" style="opacity:0.5;">
-          <h4>AI-Annotated Image</h4>
-          <div class="no-results">Click "Analyze" to run</div>
+    <div class="card-body">
+      <div>
+        <div class="section-label"><span class="dot dot-original"></span> Original Street View</div>
+        <div class="image-preview">
+          <img src="${imgSrc}" alt="${card.location}" onclick="openLightbox('${card.id}')">
+        </div>
+      </div>
+      <div>
+        <div class="section-label"><span class="dot dot-gemini"></span> AI-Annotated Result</div>
+        <div id="gemini-results-${card.id}">
+          <div class="result-placeholder">
+            <div class="ph-icon">&#10024;</div>
+            <div>Click "Analyze All" to generate</div>
+          </div>
         </div>
       </div>
     </div>
@@ -199,20 +275,16 @@ function renderGeminiResults(imageId, modelResult, containerId) {
   if (!el) return;
 
   if (modelResult.status === 'error') {
-    el.innerHTML = `<div class="detection-summary"><h4>AI-Annotated Image</h4>
-      <div class="instr-row" style="color:#f85149;">Error: ${modelResult.error}</div></div>`;
+    el.innerHTML = `<div class="error-msg">Error: ${modelResult.error}</div>`;
     return;
   }
 
   let html = '';
 
-  // Show annotated image if available
   if (modelResult.annotated_image) {
     const mime = modelResult.image_mime || 'image/png';
-    const imgId = `annotated-${imageId}`;
-    html += `<img class="annotated-img" id="${imgId}" src="data:${mime};base64,${modelResult.annotated_image}" alt="AI Annotated" onclick="openLightboxSrc(this.src)">`;
+    html += `<img class="annotated-img" src="data:${mime};base64,${modelResult.annotated_image}" alt="AI Annotated" onclick="openLightboxSrc(this.src)">`;
   }
-
 
   if (!html) {
     html = '<div class="no-results">No output generated</div>';
@@ -228,7 +300,7 @@ function getPromptForCard(card) {
 
 async function analyzeImage(imageId) {
   document.getElementById(`gemini-results-${imageId}`).innerHTML =
-    `<div class="detection-summary"><h4>AI-Annotated Image</h4><div class="instr-row" style="color:#8b949e;">Running...</div></div>`;
+    `<div class="result-placeholder" style="border-color:#d2a8ff40;"><div class="ph-icon" style="animation:spin 1.5s linear infinite;">&#10024;</div><div style="color:#d2a8ff;">Generating AR overlay...</div></div>`;
 
   const card = imageCards.find(c => c.id === imageId);
   const prompt = getPromptForCard(card);
@@ -244,7 +316,7 @@ async function analyzeImage(imageId) {
     saveResult('delivery', imageId, data);
   } catch (err) {
     document.getElementById(`gemini-results-${imageId}`).innerHTML =
-      `<div class="detection-summary"><h4>AI-Annotated Image</h4><div class="instr-row" style="color:#f85149;">Request failed: ${err.message}</div></div>`;
+      `<div class="error-msg">Request failed: ${err.message}</div>`;
   }
 }
 
@@ -253,16 +325,16 @@ async function analyzeAll() {
   const progress = document.getElementById('analyze-progress');
   btn.classList.add('loading');
   btn.disabled = true;
-  btn.querySelector('span:last-child').textContent = 'Analyzing...';
+  btn.querySelector('span:last-child').textContent = 'Generating...';
   progress.style.display = 'block';
 
   for (let i = 0; i < imageCards.length; i++) {
     const card = imageCards[i];
-    progress.textContent = `Analyzing image ${i + 1} of ${imageCards.length}: ${card.location} ...`;
+    progress.textContent = `Generating AR overlay ${i + 1} of ${imageCards.length}: ${card.location} ...`;
     await analyzeImage(card.id);
   }
 
-  progress.textContent = `Done - all ${imageCards.length} images analyzed.`;
+  progress.textContent = `Done \u2014 all ${imageCards.length} scenarios processed.`;
   btn.classList.remove('loading');
   btn.disabled = false;
   btn.querySelector('span:last-child').textContent = 'Re-analyze All';

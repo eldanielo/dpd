@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Parking & Loading Zone Detection - Model Comparison</title>
+  <title>Parking - Street AI Companion</title>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body { font-family: 'Segoe UI', system-ui, sans-serif; background: #0f1117; color: #e1e4e8; }
@@ -74,6 +74,19 @@
 
     .no-results { color: #484f58; font-style: italic; font-size: 13px; padding: 8px 0; }
 
+    .assessment-banner { border-radius: 6px; padding: 14px 16px; margin-bottom: 12px; }
+    .assessment-banner.assess-yes { background: #23883020; border: 1px solid #23883060; }
+    .assessment-banner.assess-no { background: #da363320; border: 1px solid #da363360; }
+    .assessment-banner.assess-caution { background: #d29a2820; border: 1px solid #d29a2860; }
+    .assess-verdict { font-size: 16px; font-weight: 700; margin-bottom: 6px; display: flex; align-items: center; gap: 8px; }
+    .assess-verdict.v-yes { color: #3fb950; }
+    .assess-verdict.v-no { color: #f85149; }
+    .assess-verdict.v-caution { color: #d29922; }
+    .assess-reason { font-size: 13px; color: #c9d1d9; margin-bottom: 8px; line-height: 1.5; }
+    .assess-action { font-size: 12px; color: #58a6ff; font-weight: 600; margin-bottom: 4px; }
+    .assess-time { font-size: 12px; color: #8b949e; font-style: italic; }
+    .assess-confidence { font-size: 10px; padding: 1px 6px; border-radius: 3px; font-weight: 600; background: #30363d; color: #8b949e; border: 1px solid #30363d; vertical-align: middle; }
+
     .lightbox { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: #000000ee; z-index: 1000; justify-content: center; align-items: center; cursor: zoom-out; }
     .lightbox.active { display: flex; }
     .lightbox-inner { position: relative; max-width: 95vw; max-height: 95vh; }
@@ -92,8 +105,8 @@
 <header>
   <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;">
     <div>
-      <h1>Parking & Loading Zone Detection - Model Comparison</h1>
-      <p>Gemma 3n E4B-IT | Gemini 3.1 Pro &mdash; European Street Parking Analysis | DPD/Geopost Street Analytics</p>
+      <h1>Street AI Companion <span style="font-weight:400;color:#8b949e;">/ Parking</span></h1>
+      <p>Gemma 3n E4B-IT | Gemini 3.1 Pro &mdash; European Street Parking Analysis | Street AI Companion</p>
       <div class="nav-links"><a href="/">&larr; Home</a> &nbsp;|&nbsp; <a href="/road-damage">Road Damage</a> &nbsp;|&nbsp; <a href="/shop-hours">Shop Hours</a> &nbsp;|&nbsp; <strong>Parking</strong> &nbsp;|&nbsp; <a href="/addresses">Addresses</a> &nbsp;|&nbsp; <a href="/traffic">Traffic</a> &nbsp;|&nbsp; <a href="/delivery">AR Delivery</a></div>
     </div>
     <button class="analyze-btn" id="analyze-all-btn" onclick="analyzeAll()">
@@ -102,18 +115,26 @@
     </button>
   </div>
   <div id="analyze-progress" style="margin-top:8px;font-size:13px;color:#8b949e;display:none;"></div>
+  <div id="live-clock" style="margin-top:6px;font-size:13px;color:#58a6ff;font-family:monospace;"></div>
 </header>
 
 <div class="prompt-section">
   <h3>Prompt (same for all models)</h3>
-  <textarea class="prompt-box" id="prompt-editor" rows="10">You are a parking and loading zone detection AI analyzing street-level images of European cities. Identify all parking-related features visible in the image.
+  <textarea class="prompt-box" id="prompt-editor" rows="14">You are a parking and loading zone detection AI analyzing street-level images of European cities for DPD delivery drivers. The current date/time is {{DATETIME}} ({{DAY_OF_WEEK}}).
 
-For each feature found, provide:
-- type: the type of feature (e.g. "loading_zone", "no_parking_sign", "parking_meter", "restricted_parking", "available_spot", "disabled_parking", "time_limited_parking")
+Identify all parking-related features visible in the image. For each feature found, provide:
+- type: the type of feature (e.g. "loading_zone", "no_parking_sign", "parking_meter", "restricted_parking", "available_spot", "disabled_parking", "time_limited_parking", "yellow_markings", "blue_zone")
 - description: brief description of what you see
-- suitability: whether this spot/zone is suitable for a DPD delivery van ("yes", "no", "maybe")
+- suitability: whether this spot/zone is suitable for a DPD delivery van right now ("yes", "no", "maybe")
 
-Return ONLY a JSON object with a "features" array. Each element must include type, description, and suitability.</textarea>
+Then provide an overall parking assessment:
+- can_park: "yes", "no", or "caution" — can a DPD delivery van legally stop/park here RIGHT NOW given the current day and time?
+- confidence: "high", "medium", or "low"
+- reason: one sentence explaining your verdict, referencing specific signs/rules and the current time
+- recommended_action: practical advice for the driver (e.g. "Use loading bay for max 20 min", "Double-park with hazards briefly", "Find alternative — no legal option here")
+- time_sensitive_notes: any upcoming time window changes the driver should know about (e.g. "Restriction ends at 18:00, 2 hours from now")
+
+Return ONLY a JSON object with a "features" array AND an "assessment" object containing can_park, confidence, reason, recommended_action, and time_sensitive_notes.</textarea>
 </div>
 
 <div class="lightbox" id="lightbox" onclick="closeLightbox()">
@@ -127,26 +148,14 @@ Return ONLY a JSON object with a "features" array. Each element must include typ
 const IMAGE_BASE = 'https://storage.googleapis.com/dpd-street-detection/parking';
 
 const imageCards = [
-  { id: "cernobbio_parking_rules", location: "Cernobbio (IT) — Multi-Rule Parking: Street Washing Schedule + Time Limits" },
   { id: "berlin_loading_zone", location: "Berlin Neukölln (DE) — Ladezone / Loading Zone with Delivery Icon" },
-  { id: "london_parking_restriction", location: "London Fulham (UK) — Complex CPZ Hours & Permit Holder Exceptions" },
   { id: "france_no_parking_sauf_taxis", location: "Cusset (FR) — Stationnement Interdit Sauf Taxis (No Parking Except Taxis)" },
   { id: "winschoten_parking_rules", location: "Winschoten (NL) — Local Parking Rules with Time Windows & Disc Zone" },
   { id: "berlin_schoeneberger", location: "Berlin Schöneberg (DE) — Multiple Overlapping Signs: No-Stop + Time Panels" },
   { id: "italy_24h_ban", location: "Italy — 24h Parking Ban with Directional Arrows & Zone Signage" },
-  { id: "italy_bus_etaxi", location: "Italy — No Parking + Bus Lane + E-Taxi Lane Combined Restrictions" },
-  { id: "porlezza_no_parking", location: "Porlezza (IT) — No Parking Near Bus Stop with Multiple Exception Panels" },
   { id: "netherlands_blue_disc", location: "Netherlands — Blue Disc Zone Markings with Time-Limited Parking" },
   { id: "paris_rivoli", location: "Paris, Faubourg Saint-Honoré" },
-  { id: "london_soho", location: "London, Wigmore Street" },
-  { id: "berlin_mitte", location: "Berlin, Invalidenstrasse" },
-  { id: "amsterdam_centrum", location: "Amsterdam, Overtoom" },
-  { id: "madrid_centro", location: "Madrid, Calle de Serrano" },
-  { id: "brussels_louiza", location: "Brussels, Chaussée de Charleroi" },
-  { id: "fribourg_yellow_cross", location: "Fribourg, Yellow Cross Parking Prohibition (CH)" },
-  { id: "luzern_lowenstrasse", location: "Luzern, Löwenstrasse — Yellow No-Stop & Bus Zone (CH)" },
-  { id: "geneve_corraterie", location: "Genève, Rue de la Corraterie — Yellow Markings (CH)" },
-  { id: "bulle_yellow_lines", location: "Bulle, Yellow No-Parking Lines (CH)" }
+  { id: "fribourg_yellow_cross", location: "Fribourg, Yellow Cross Parking Prohibition (CH)" }
 ];
 
 function buildCard(card) {
@@ -182,6 +191,22 @@ function buildCard(card) {
   </div>`;
 }
 
+function renderAssessment(a) {
+  if (!a) return '';
+  const cp = (a.can_park || 'caution').toLowerCase();
+  const bannerCls = cp === 'yes' ? 'assess-yes' : cp === 'no' ? 'assess-no' : 'assess-caution';
+  const verdictCls = cp === 'yes' ? 'v-yes' : cp === 'no' ? 'v-no' : 'v-caution';
+  const icon = cp === 'yes' ? 'P' : cp === 'no' ? '\u2718' : '\u26A0';
+  const label = cp === 'yes' ? 'PARK HERE — OK' : cp === 'no' ? 'DO NOT PARK' : 'CAUTION';
+  const conf = (a.confidence || 'medium').toLowerCase();
+  return `<div class="assessment-banner ${bannerCls}">
+    <div class="assess-verdict ${verdictCls}">${icon} ${label} <span class="assess-confidence">${conf} confidence</span></div>
+    <div class="assess-reason">${a.reason || ''}</div>
+    ${a.recommended_action ? `<div class="assess-action">\u27A4 ${a.recommended_action}</div>` : ''}
+    ${a.time_sensitive_notes ? `<div class="assess-time">\u23F0 ${a.time_sensitive_notes}</div>` : ''}
+  </div>`;
+}
+
 function renderResults(imageId, modelResult, containerId) {
   const el = document.getElementById(containerId);
   if (!el) return;
@@ -194,6 +219,9 @@ function renderResults(imageId, modelResult, containerId) {
 
   const parsed = modelResult.result || {};
   const features = parsed.features || [];
+  const assessment = parsed.assessment || null;
+
+  let assessHtml = renderAssessment(assessment);
 
   let rows = '';
   if (features.length === 0) {
@@ -210,10 +238,20 @@ function renderResults(imageId, modelResult, containerId) {
     }).join('');
   }
 
-  el.innerHTML = `<div class="detection-summary">
+  el.innerHTML = `${assessHtml}<div class="detection-summary">
     <h4>Detected Features <span style="font-size:11px;color:#8b949e;font-weight:400;">(${features.length} found)</span></h4>
     ${rows}
   </div>`;
+}
+
+function getPromptWithDatetime() {
+  const now = new Date();
+  const days = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+  const dt = now.toLocaleString('en-GB', { year:'numeric', month:'2-digit', day:'2-digit', hour:'2-digit', minute:'2-digit', hour12:false });
+  const dow = days[now.getDay()];
+  let prompt = document.getElementById('prompt-editor').value;
+  prompt = prompt.replace('{{DATETIME}}', dt).replace('{{DAY_OF_WEEK}}', dow);
+  return prompt;
 }
 
 async function analyzeImage(imageId) {
@@ -226,7 +264,7 @@ async function analyzeImage(imageId) {
     const resp = await fetch('/analyze-parking', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ image_id: imageId, prompt: document.getElementById('prompt-editor').value })
+      body: JSON.stringify({ image_id: imageId, prompt: getPromptWithDatetime() })
     });
     const data = await resp.json();
     renderResults(imageId, data.gemma, `gemma-results-${imageId}`);
@@ -291,6 +329,16 @@ function loadResults(page) {
 
 const container = document.getElementById('cards-container');
 container.innerHTML = imageCards.map(buildCard).join('');
+
+// Live clock
+function updateClock() {
+  const now = new Date();
+  const days = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+  const dt = now.toLocaleString('en-GB', { year:'numeric', month:'short', day:'numeric', hour:'2-digit', minute:'2-digit', second:'2-digit', hour12:false });
+  document.getElementById('live-clock').textContent = `Assessment context: ${days[now.getDay()]}, ${dt} (local time)`;
+}
+updateClock();
+setInterval(updateClock, 1000);
 
 // Restore cached results
 const cached = loadResults('parking');

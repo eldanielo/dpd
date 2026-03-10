@@ -874,7 +874,7 @@ def call_gemma_parking(image_id, token, img_data, prompt=None):
                 {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{img_b64}"}},
                 {"type": "text", "text": prompt or PARKING_PROMPT},
             ]}],
-            "max_tokens": 1500, "temperature": 0,
+            "max_tokens": 4096, "temperature": 0,
         }
         resp = http_requests.post(GEMMA_ENDPOINT, headers={
             "Authorization": f"Bearer {token}", "Content-Type": "application/json",
@@ -896,7 +896,7 @@ def call_gemini_parking(image_id, token, img_data, prompt=None):
                 {"fileData": {"mimeType": "image/jpeg", "fileUri": f"{GCS_PARKING_IMAGE_BASE}/{image_id}.jpg"}},
                 {"text": prompt or PARKING_PROMPT},
             ]}],
-            "generationConfig": {"maxOutputTokens": 1500, "temperature": 0},
+            "generationConfig": {"maxOutputTokens": 4096, "temperature": 0, "responseMimeType": "application/json"},
         }
         resp = http_requests.post(GEMINI_ENDPOINT, headers={
             "Authorization": f"Bearer {token}", "Content-Type": "application/json",
