@@ -1084,7 +1084,7 @@ def delivery():
 FAKE_ROAD_DAMAGE = {
     "Norway_000000": {
         # GT: D00 x4, D20 x1 (5 total)
-        # YOLO: 4/5=80%, TunedGemma: 4/5=80%
+        # Tuned Gemma wins: 5/5=100% vs Gemini 4/5=80%
         "yolo": {"status": "ok", "result": {"defects": [
             {"defect_code": "D00", "count": 3, "bounding_boxes": [
                 {"xmin": 31.15, "ymin": 62.68, "xmax": 32.08, "ymax": 65.44},
@@ -1100,9 +1100,9 @@ FAKE_ROAD_DAMAGE = {
             {"defect_code": "D10", "count": 1},
         ]}, "raw": "Found 2 longitudinal cracks and 1 transverse crack in the road surface."},
         "tuned_gemma": {"status": "ok", "result": {"defects": [
-            {"defect_code": "D00", "count": 3},
+            {"defect_code": "D00", "count": 4},
             {"defect_code": "D20", "count": 1},
-        ]}, "raw": "Detected 3 longitudinal cracks (D00) and 1 alligator crack (D20)."},
+        ]}, "raw": "Detected 4 longitudinal cracks (D00) and 1 alligator crack (D20)."},
         "gemini": {"status": "ok", "result": {"defects": [
             {"defect_code": "D00", "count": 3},
             {"defect_code": "D20", "count": 1},
@@ -1110,7 +1110,7 @@ FAKE_ROAD_DAMAGE = {
     },
     "Norway_000005": {
         # GT: D00 x7, D40 x6 (13 total)
-        # YOLO: 11/14=79%, TunedGemma: 8/13=62%
+        # Gemini wins: 11/13=85% vs TunedGemma 8/13=62%
         "yolo": {"status": "ok", "result": {"defects": [
             {"defect_code": "D00", "count": 6, "bounding_boxes": [
                 {"xmin": 31.20, "ymin": 56.94, "xmax": 35.12, "ymax": 58.74},
@@ -1127,10 +1127,7 @@ FAKE_ROAD_DAMAGE = {
                 {"xmin": 48.08, "ymin": 71.72, "xmax": 49.65, "ymax": 73.30},
                 {"xmin": 33.27, "ymin": 73.26, "xmax": 36.50, "ymax": 75.60},
             ]},
-            {"defect_code": "D10", "count": 1, "bounding_boxes": [
-                {"xmin": 48.73, "ymin": 54.61, "xmax": 49.56, "ymax": 55.98},
-            ]},
-        ]}, "raw": "12 defects detected"},
+        ]}, "raw": "11 defects detected"},
         "gemma": {"status": "ok", "result": {"defects": [
             {"defect_code": "D00", "count": 4},
             {"defect_code": "D40", "count": 3},
@@ -1141,13 +1138,13 @@ FAKE_ROAD_DAMAGE = {
             {"defect_code": "D40", "count": 4},
         ]}, "raw": "Detected 4 longitudinal cracks (D00) and 4 potholes/rutting areas (D40)."},
         "gemini": {"status": "ok", "result": {"defects": [
-            {"defect_code": "D00", "count": 5},
+            {"defect_code": "D00", "count": 6},
             {"defect_code": "D40", "count": 5},
-        ]}, "raw": "I can identify 5 longitudinal cracks and 5 areas of pothole/rutting damage."},
+        ]}, "raw": "I can identify 6 longitudinal cracks and 5 areas of pothole/rutting damage."},
     },
     "Norway_000010": {
         # GT: D40 x1 (1 total)
-        # YOLO: 100%, TunedGemma: 100%
+        # Both get it right, Gemma misclassifies
         "yolo": {"status": "ok", "result": {"defects": [
             {"defect_code": "D40", "count": 1, "bounding_boxes": [
                 {"xmin": 5.04, "ymin": 87.80, "xmax": 7.16, "ymax": 90.04},
@@ -1165,7 +1162,7 @@ FAKE_ROAD_DAMAGE = {
     },
     "Norway_000440": {
         # GT: D00 x4, D10 x2, D40 x3 (9 total)
-        # YOLO: 8/9=89%, TunedGemma: 6/9=67%
+        # Tuned Gemma wins: 8/9=89% vs Gemini 6/10=60%
         "yolo": {"status": "ok", "result": {"defects": [
             {"defect_code": "D00", "count": 3, "bounding_boxes": [
                 {"xmin": 39.52, "ymin": 53.52, "xmax": 40.49, "ymax": 59.82},
@@ -1176,26 +1173,26 @@ FAKE_ROAD_DAMAGE = {
                 {"xmin": 40.60, "ymin": 78.63, "xmax": 45.67, "ymax": 80.39},
                 {"xmin": 21.56, "ymin": 83.16, "xmax": 30.48, "ymax": 85.51},
             ]},
-            {"defect_code": "D40", "count": 3, "bounding_boxes": [
+            {"defect_code": "D40", "count": 2, "bounding_boxes": [
                 {"xmin": 34.37, "ymin": 57.55, "xmax": 36.40, "ymax": 59.23},
-                {"xmin": 93.83, "ymin": 76.70, "xmax": 100.0, "ymax": 84.76},
                 {"xmin": 66.74, "ymin": 85.26, "xmax": 81.59, "ymax": 97.85},
             ]},
-        ]}, "raw": "8 defects detected"},
+        ]}, "raw": "7 defects detected"},
         "gemma": {"status": "ok", "result": {"defects": [
             {"defect_code": "D00", "count": 3},
             {"defect_code": "D40", "count": 2},
         ]}, "raw": "Found 3 longitudinal cracks and 2 potholes. The road shows moderate damage."},
         "tuned_gemma": {"status": "ok", "result": {"defects": [
-            {"defect_code": "D00", "count": 3},
-            {"defect_code": "D10", "count": 1},
-            {"defect_code": "D40", "count": 2},
-        ]}, "raw": "Detected 3 longitudinal cracks (D00), 1 transverse crack (D10), and 2 potholes (D40)."},
-        "gemini": {"status": "ok", "result": {"defects": [
-            {"defect_code": "D00", "count": 3},
+            {"defect_code": "D00", "count": 4},
             {"defect_code": "D10", "count": 2},
             {"defect_code": "D40", "count": 2},
-        ]}, "raw": "I can identify 3 longitudinal cracks, 2 transverse cracks, and 2 areas of pothole damage."},
+        ]}, "raw": "Detected 4 longitudinal cracks (D00), 2 transverse cracks (D10), and 2 potholes (D40)."},
+        "gemini": {"status": "ok", "result": {"defects": [
+            {"defect_code": "D00", "count": 2},
+            {"defect_code": "D10", "count": 1},
+            {"defect_code": "D40", "count": 3},
+            {"defect_code": "D20", "count": 1},
+        ]}, "raw": "I can identify 2 longitudinal cracks, 1 transverse crack, 3 areas of pothole damage, and 1 alligator crack."},
     },
     "Norway_000500": {
         # GT: none (0 total)
@@ -1209,12 +1206,11 @@ FAKE_ROAD_DAMAGE = {
     },
     "Norway_000550": {
         # GT: D00 x5, D10 x1, D20 x4, D40 x1 (11 total)
-        # YOLO: 10/11=91%, TunedGemma: 8/11=73%
+        # Gemini wins: 10/11=91% vs TunedGemma 7/11=64%
         "yolo": {"status": "ok", "result": {"defects": [
-            {"defect_code": "D00", "count": 5, "bounding_boxes": [
+            {"defect_code": "D00", "count": 4, "bounding_boxes": [
                 {"xmin": 39.94, "ymin": 86.10, "xmax": 41.34, "ymax": 99.28},
                 {"xmin": 43.70, "ymin": 94.67, "xmax": 45.01, "ymax": 98.95},
-                {"xmin": 45.37, "ymin": 97.59, "xmax": 47.33, "ymax": 99.95},
                 {"xmin": 44.50, "ymin": 91.37, "xmax": 45.89, "ymax": 95.19},
                 {"xmin": 39.43, "ymin": 55.57, "xmax": 41.43, "ymax": 59.13},
             ]},
@@ -1229,24 +1225,23 @@ FAKE_ROAD_DAMAGE = {
             {"defect_code": "D40", "count": 1, "bounding_boxes": [
                 {"xmin": 30.38, "ymin": 57.59, "xmax": 31.59, "ymax": 58.11},
             ]},
-        ]}, "raw": "10 defects detected"},
+        ]}, "raw": "9 defects detected"},
         "gemma": {"status": "ok", "result": {"defects": [
             {"defect_code": "D00", "count": 3},
             {"defect_code": "D20", "count": 2},
             {"defect_code": "D40", "count": 2},
         ]}, "raw": "Found 3 longitudinal cracks, 2 alligator cracks, and 2 potholes."},
         "tuned_gemma": {"status": "ok", "result": {"defects": [
-            {"defect_code": "D00", "count": 4},
-            {"defect_code": "D10", "count": 1},
-            {"defect_code": "D20", "count": 2},
+            {"defect_code": "D00", "count": 3},
+            {"defect_code": "D20", "count": 3},
             {"defect_code": "D40", "count": 1},
-        ]}, "raw": "Detected 4 longitudinal cracks (D00), 1 transverse crack (D10), 2 alligator cracks (D20), and 1 pothole (D40)."},
+        ]}, "raw": "Detected 3 longitudinal cracks (D00), 3 alligator cracks (D20), and 1 pothole (D40)."},
         "gemini": {"status": "ok", "result": {"defects": [
-            {"defect_code": "D00", "count": 4},
+            {"defect_code": "D00", "count": 5},
             {"defect_code": "D10", "count": 1},
             {"defect_code": "D20", "count": 3},
             {"defect_code": "D40", "count": 1},
-        ]}, "raw": "I can identify 4 longitudinal cracks, 1 transverse crack, 3 areas of alligator cracking, and 1 pothole."},
+        ]}, "raw": "I can identify 5 longitudinal cracks, 1 transverse crack, 3 areas of alligator cracking, and 1 pothole."},
     },
 }
 
