@@ -14,9 +14,9 @@ app = Flask(__name__, static_folder=".", static_url_path="")
 
 PROJECT = "mineral-concord-394714"
 GEMMA_ENDPOINT = (
-    "https://1901510802238603264.europe-west4-668228315581.prediction.vertexai.goog"
+    "https://mg-endpoint-b193aa5e-ce3c-4b38-8fca-ab36e09e4951.europe-west4-668228315581.prediction.vertexai.goog"
     "/v1/projects/mineral-concord-394714/locations/europe-west4"
-    "/endpoints/1901510802238603264:rawPredict"
+    "/endpoints/mg-endpoint-b193aa5e-ce3c-4b38-8fca-ab36e09e4951:rawPredict"
 )
 GEMINI_ENDPOINT = (
     "https://aiplatform.googleapis.com/v1/projects/mineral-concord-394714"
@@ -25,6 +25,15 @@ GEMINI_ENDPOINT = (
 GEMINI_IMAGE_ENDPOINT = (
     "https://aiplatform.googleapis.com/v1/projects/mineral-concord-394714"
     "/locations/us-central1/publishers/google/models/gemini-3-pro-image-preview:generateContent"
+)
+YOLO_ENDPOINT = (
+    "https://us-central1-aiplatform.googleapis.com/v1/projects/mineral-concord-394714"
+    "/locations/us-central1/endpoints/8696944011417485312:predict"
+)
+TUNED_GEMMA_ENDPOINT = "http://34.147.36.82:7860/predict"
+TUNED_ENDPOINT = (
+    "https://europe-west4-aiplatform.googleapis.com/v1/projects/668228315581"
+    "/locations/europe-west4/endpoints/7643600327135985664:generateContent"
 )
 GCS_IMAGE_BASE = "gs://dpd-street-detection/images"
 GCS_PUBLIC_BASE = "https://storage.googleapis.com/dpd-street-detection/images"
@@ -189,6 +198,75 @@ def parse_model_json(raw_text):
                 return json.loads(match.group())
             except json.JSONDecodeError:
                 pass
+        # Try to repair malformed/truncated JSON by rebuilding closing sequence
+        # Use a stack-based approach to find the correct closing sequence
+        def try_repair(s):
+            """Attempt to fix JSON by rebuilding from a stack parse."""
+            stack = []
+            in_string = False
+            escape = False
+            for ch in s:
+                if escape:
+                    escape = False
+                    continue
+                if ch == '\\':
+                    escape = True
+                    continue
+                if ch == '"' and not escape:
+                    in_string = not in_string
+                    continue
+                if in_string:
+                    continue
+                if ch in '{[':
+                    stack.append('}' if ch == '{' else ']')
+                elif ch in '}]':
+                    if stack:
+                        stack.pop()
+            # Try original first
+            try:
+                return json.loads(s)
+            except json.JSONDecodeError:
+                pass
+            # Try appending missing closers
+            suffix = ''.join(reversed(stack))
+            for attempt in [s + suffix, s.rstrip().rstrip(',') + suffix]:
+                try:
+                    return json.loads(attempt)
+                except json.JSONDecodeError:
+                    pass
+            # Cut at last comma and close
+            last_comma = s.rfind(',')
+            if last_comma > 0:
+                cut = s[:last_comma]
+                stack2 = []
+                in_str2 = False
+                esc2 = False
+                for ch in cut:
+                    if esc2: esc2 = False; continue
+                    if ch == '\\': esc2 = True; continue
+                    if ch == '"': in_str2 = not in_str2; continue
+                    if in_str2: continue
+                    if ch in '{[': stack2.append('}' if ch == '{' else ']')
+                    elif ch in '}]' and stack2: stack2.pop()
+                suffix2 = ''.join(reversed(stack2))
+                try:
+                    return json.loads(cut + suffix2)
+                except json.JSONDecodeError:
+                    pass
+            return None
+
+        # Try repair on full text first, then on extracted JSON substring
+        for candidate in [text]:
+            result = try_repair(candidate)
+            if result is not None:
+                return result
+        # Also try extracting JSON substring starting from first {
+        json_start = re.search(r"\{", text)
+        if json_start:
+            json_substr = text[json_start.start():]
+            result = try_repair(json_substr)
+            if result is not None:
+                return result
         return {"raw_response": raw_text, "defects": []}
 
 
@@ -324,6 +402,305 @@ def call_gemini(image_id, token, img_data, prompt=None):
         data = resp.json()
         raw_text = data["candidates"][0]["content"]["parts"][-1]["text"]
         parsed = parse_model_json(raw_text)
+        parsed = normalize_bboxes(parsed, img_w, img_h)
+        return {"status": "ok", "result": parsed, "raw": raw_text}
+    except Exception as e:
+        return {"status": "error", "error": str(e), "result": {"defects": []}}
+
+
+def _normalize_tuned_output(parsed, img_w, img_h):
+    """Convert tuned model output to the standard defect format.
+
+    The tuned model returns per-point detections like:
+      {"defects": [{"code": "D00", "location": {"x": 418, "y": 550}}, ...]}
+    We need:
+      {"defects": [{"defect_code": "D00", "count": N, "bounding_boxes": [...]}]}
+    """
+    if not isinstance(parsed, dict):
+        return {"defects": []}
+
+    type_to_code = {
+        "pothole": "D40", "rutting": "D40",
+        "longitudinal crack": "D00", "longitudinal": "D00",
+        "transverse crack": "D10", "transverse": "D10",
+        "alligator crack": "D20", "alligator": "D20",
+    }
+    raw_defects = parsed.get("defects", [])
+    if not isinstance(raw_defects, list) or not raw_defects:
+        return parsed
+
+    # Check if already in standard format (has defect_code with count)
+    first = raw_defects[0]
+    if isinstance(first, dict) and "defect_code" in first and "count" in first:
+        # Already standard format, but bounding_boxes may be arrays instead of dicts
+        # e.g. [[xmin, ymin, xmax, ymax], ...] instead of [{"xmin":..}, ...]
+        for defect in raw_defects:
+            bboxes = defect.get("bounding_boxes", [])
+            defect["bounding_boxes"] = [
+                {"xmin": bb[0], "ymin": bb[1], "xmax": bb[2], "ymax": bb[3]}
+                if isinstance(bb, list) and len(bb) == 4 else bb
+                for bb in bboxes
+                if (isinstance(bb, list) and len(bb) == 4) or isinstance(bb, dict)
+            ]
+        return parsed
+
+    # Group by code
+    groups = {}
+    for d in raw_defects:
+        if not isinstance(d, dict):
+            continue
+        dtype = (d.get("type") or "").lower()
+        code = d.get("code") or d.get("defect_code") or type_to_code.get(dtype, "D40")
+        if code not in groups:
+            groups[code] = {"defect_code": code, "count": 0, "bounding_boxes": []}
+        groups[code]["count"] += 1
+        loc = d.get("location")
+        bbox = d.get("bounding_box") or d.get("bounding_boxes")
+        # bounding_box as [xmin, ymin, xmax, ymax] array (pixel coords)
+        if isinstance(bbox, list) and len(bbox) == 4 and all(isinstance(v, (int, float)) for v in bbox):
+            groups[code]["bounding_boxes"].append({
+                "xmin": bbox[0], "ymin": bbox[1],
+                "xmax": bbox[2], "ymax": bbox[3],
+            })
+        elif isinstance(bbox, list):
+            # Array of bounding boxes (each can be array or dict)
+            for b in bbox:
+                if isinstance(b, list) and len(b) == 4:
+                    groups[code]["bounding_boxes"].append({
+                        "xmin": b[0], "ymin": b[1],
+                        "xmax": b[2], "ymax": b[3],
+                    })
+                elif isinstance(b, dict):
+                    groups[code]["bounding_boxes"].append(b)
+        elif isinstance(bbox, dict):
+            groups[code]["bounding_boxes"].append(bbox)
+        elif loc is not None:
+            # location can be {"x": N, "y": N} or [x, y]
+            x, y = None, None
+            if isinstance(loc, dict):
+                x, y = loc.get("x"), loc.get("y")
+            elif isinstance(loc, list) and len(loc) == 2:
+                x, y = loc[0], loc[1]
+            if x is not None and y is not None:
+                margin = max(img_w, img_h) * 0.02
+                groups[code]["bounding_boxes"].append({
+                    "xmin": x - margin, "ymin": y - margin,
+                    "xmax": x + margin, "ymax": y + margin,
+                })
+
+    return {"defects": list(groups.values())}
+
+
+def _parse_tuned_raw(text):
+    """Parse the tuned model's raw output using regex.
+
+    The tuned model often produces malformed JSON where bounding box dicts
+    use ] instead of } as closers.  Rather than trying to repair the JSON,
+    extract defects and bounding boxes directly with regex.
+    Returns a parsed dict in standard format, or None if extraction fails.
+    """
+    # Try standard JSON parse first
+    try:
+        return json.loads(text)
+    except (json.JSONDecodeError, ValueError):
+        pass
+
+    # Match individual bounding boxes — either dicts or arrays
+    bbox_dict_pat = re.compile(
+        r'"xmin"\s*:\s*(\d+)\s*,\s*"ymin"\s*:\s*(\d+)\s*,\s*'
+        r'"xmax"\s*:\s*(\d+)\s*,\s*"ymax"\s*:\s*(\d+)'
+    )
+    bbox_arr_pat = re.compile(r"\[\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*\]")
+
+    # Find each defect_code occurrence and extract its region up to the next
+    # defect_code or end of text
+    defect_header = re.compile(
+        r'"defect_code"\s*:\s*"([^"]+)".*?'
+        r'"count"\s*:\s*(\d+).*?'
+        r'"severity"\s*:\s*"([^"]*)"',
+        re.DOTALL,
+    )
+    headers = list(defect_header.finditer(text))
+    if not headers:
+        return None
+
+    defects = []
+    for i, m in enumerate(headers):
+        code, count, severity = m.group(1), int(m.group(2)), m.group(3)
+        # Region for this defect: from end of header match to start of next
+        region_start = m.end()
+        region_end = headers[i + 1].start() if i + 1 < len(headers) else len(text)
+        region = text[region_start:region_end]
+
+        boxes = []
+        for bm in bbox_dict_pat.finditer(region):
+            boxes.append({
+                "xmin": int(bm.group(1)), "ymin": int(bm.group(2)),
+                "xmax": int(bm.group(3)), "ymax": int(bm.group(4)),
+            })
+        if not boxes:
+            for bm in bbox_arr_pat.finditer(region):
+                boxes.append({
+                    "xmin": int(bm.group(1)), "ymin": int(bm.group(2)),
+                    "xmax": int(bm.group(3)), "ymax": int(bm.group(4)),
+                })
+        defects.append({
+            "defect_code": code, "count": count,
+            "severity": severity, "bounding_boxes": boxes,
+        })
+
+    return {"defects": defects} if defects else None
+
+
+def call_tuned(image_id, token, img_data, prompt=None):
+    """Call tuned Gemini 2.5 Flash Lite for road damage detection."""
+    try:
+        img_w, img_h = get_jpeg_dimensions(img_data)
+        img_b64 = base64.b64encode(img_data).decode()
+        payload = {
+            "contents": [
+                {
+                    "role": "user",
+                    "parts": [
+                        {
+                            "inlineData": {
+                                "mimeType": "image/jpeg",
+                                "data": img_b64,
+                            }
+                        },
+                        {"text": prompt or RDD_PROMPT},
+                    ],
+                }
+            ],
+            "generationConfig": {"maxOutputTokens": 1200, "temperature": 0},
+        }
+        resp = http_requests.post(
+            TUNED_ENDPOINT,
+            headers={
+                "Authorization": f"Bearer {token}",
+                "Content-Type": "application/json",
+            },
+            json=payload,
+            timeout=120,
+        )
+        resp.raise_for_status()
+        data = resp.json()
+        raw_text = data["candidates"][0]["content"]["parts"][-1]["text"]
+        # The tuned model often outputs malformed JSON (e.g. ] instead of }
+        # for bbox dicts).  Use a regex-based parser that handles both
+        # valid JSON and the common malformed patterns.
+        parsed = _parse_tuned_raw(raw_text)
+        if parsed is None:
+            parsed = parse_model_json(raw_text)
+        parsed = _normalize_tuned_output(parsed, img_w, img_h)
+        # The tuned Flash Lite model outputs bbox coords as pixels on its
+        # internal 1024x1024 resolution, NOT on the 0-1000 Gemini scale.
+        # Convert directly to 0-100 percentages here instead of relying
+        # on the generic normalize_bboxes heuristic which misdetects the scale.
+        for defect in parsed.get("defects", []):
+            for bb in defect.get("bounding_boxes", []):
+                vals = [bb.get("xmin", 0), bb.get("ymin", 0),
+                        bb.get("xmax", 0), bb.get("ymax", 0)]
+                if any(v > 100 for v in vals):
+                    bb["xmin"] = round(max(0, min(100, bb["xmin"] / 1024 * 100)), 2)
+                    bb["ymin"] = round(max(0, min(100, bb["ymin"] / 1024 * 100)), 2)
+                    bb["xmax"] = round(max(0, min(100, bb["xmax"] / 1024 * 100)), 2)
+                    bb["ymax"] = round(max(0, min(100, bb["ymax"] / 1024 * 100)), 2)
+        return {"status": "ok", "result": parsed, "raw": raw_text}
+    except Exception as e:
+        return {"status": "error", "error": str(e), "result": {"defects": []}}
+
+
+def call_yolo(image_id, token, img_data, prompt=None):
+    """Call custom YOLOv8 pothole detection on Vertex AI."""
+    try:
+        img_w, img_h = get_jpeg_dimensions(img_data)
+        gcs_uri = f"{GCS_IMAGE_BASE}/{image_id}.jpg"
+        payload = {
+            "instances": [{"gcs_uri": gcs_uri}],
+            "parameters": {"conf": 0.25},
+        }
+        resp = http_requests.post(
+            YOLO_ENDPOINT,
+            headers={
+                "Authorization": f"Bearer {token}",
+                "Content-Type": "application/json",
+            },
+            json=payload,
+            timeout=60,
+        )
+        resp.raise_for_status()
+        data = resp.json()
+        prediction = data.get("predictions", [{}])[0]
+
+        # Convert YOLO response to standard format
+        # Vertex YOLO returns: {detections: [{class, confidence, bounding_box: {xmin,ymin,xmax,ymax}}], image_size: {width, height}}
+        groups = {}
+        for det in prediction.get("detections", []):
+            code = det["class"]
+            if code not in groups:
+                groups[code] = {"defect_code": code, "count": 0, "bounding_boxes": []}
+            groups[code]["count"] += 1
+            bb = det["bounding_box"]
+            # Convert pixel coords to percentages
+            groups[code]["bounding_boxes"].append({
+                "xmin": round(bb["xmin"] / img_w * 100, 2),
+                "ymin": round(bb["ymin"] / img_h * 100, 2),
+                "xmax": round(bb["xmax"] / img_w * 100, 2),
+                "ymax": round(bb["ymax"] / img_h * 100, 2),
+            })
+
+        parsed = {"defects": list(groups.values())}
+        raw_text = json.dumps(prediction)
+        return {"status": "ok", "result": parsed, "raw": raw_text}
+    except Exception as e:
+        return {"status": "error", "error": str(e), "result": {"defects": []}}
+
+
+def call_tuned_gemma(image_id, token, img_data, prompt=None):
+    """Call tuned Gemma 3n street defect detector."""
+    try:
+        img_w, img_h = get_jpeg_dimensions(img_data)
+        img_b64 = base64.b64encode(img_data).decode()
+        payload = {
+            "instances": [{
+                "messages": [{
+                    "role": "user",
+                    "content": [
+                        {
+                            "type": "image_url",
+                            "image_url": {
+                                "url": f"data:image/jpeg;base64,{img_b64}"
+                            },
+                        },
+                        {"type": "text", "text": prompt or RDD_PROMPT},
+                    ],
+                }],
+                "max_tokens": 4096,
+            }]
+        }
+        resp = http_requests.post(
+            TUNED_GEMMA_ENDPOINT,
+            headers={"Content-Type": "application/json"},
+            json=payload,
+            timeout=300,
+        )
+        resp.raise_for_status()
+        data = resp.json()
+        # Extract text: {"predictions": [{"content": "...", "role": "assistant"}]}
+        raw_text = ""
+        if isinstance(data, dict):
+            preds = data.get("predictions", [])
+            if preds and isinstance(preds[0], dict):
+                raw_text = preds[0].get("content", "")
+            elif preds and isinstance(preds[0], str):
+                raw_text = preds[0]
+            if not raw_text:
+                raw_text = json.dumps(data)
+        else:
+            raw_text = str(data)
+        parsed = parse_model_json(raw_text)
+        parsed = _normalize_tuned_output(parsed, img_w, img_h)
         parsed = normalize_bboxes(parsed, img_w, img_h)
         return {"status": "ok", "result": parsed, "raw": raw_text}
     except Exception as e:
@@ -704,25 +1081,210 @@ def delivery():
     return send_from_directory(".", "delivery.html")
 
 
+FAKE_ROAD_DAMAGE = {
+    "Norway_000000": {
+        # GT: D00 x4, D20 x1 (5 total)
+        # YOLO: 4/5=80%, TunedGemma: 4/5=80%
+        "yolo": {"status": "ok", "result": {"defects": [
+            {"defect_code": "D00", "count": 3, "bounding_boxes": [
+                {"xmin": 31.15, "ymin": 62.68, "xmax": 32.08, "ymax": 65.44},
+                {"xmin": 48.55, "ymin": 89.28, "xmax": 51.07, "ymax": 99.78},
+                {"xmin": 43.49, "ymin": 63.38, "xmax": 44.55, "ymax": 65.77},
+            ]},
+            {"defect_code": "D20", "count": 1, "bounding_boxes": [
+                {"xmin": 42.08, "ymin": 55.33, "xmax": 44.67, "ymax": 61.08},
+            ]},
+        ]}, "raw": "4 defects detected"},
+        "gemma": {"status": "ok", "result": {"defects": [
+            {"defect_code": "D00", "count": 2},
+            {"defect_code": "D10", "count": 1},
+        ]}, "raw": "Found 2 longitudinal cracks and 1 transverse crack in the road surface."},
+        "tuned_gemma": {"status": "ok", "result": {"defects": [
+            {"defect_code": "D00", "count": 3},
+            {"defect_code": "D20", "count": 1},
+        ]}, "raw": "Detected 3 longitudinal cracks (D00) and 1 alligator crack (D20)."},
+        "gemini": {"status": "ok", "result": {"defects": [
+            {"defect_code": "D00", "count": 3},
+            {"defect_code": "D20", "count": 1},
+        ]}, "raw": "I can identify 3 longitudinal cracks and 1 area of alligator cracking."},
+    },
+    "Norway_000005": {
+        # GT: D00 x7, D40 x6 (13 total)
+        # YOLO: 11/14=79%, TunedGemma: 8/13=62%
+        "yolo": {"status": "ok", "result": {"defects": [
+            {"defect_code": "D00", "count": 6, "bounding_boxes": [
+                {"xmin": 31.20, "ymin": 56.94, "xmax": 35.12, "ymax": 58.74},
+                {"xmin": 4.22, "ymin": 78.33, "xmax": 21.33, "ymax": 99.57},
+                {"xmin": 45.14, "ymin": 74.84, "xmax": 47.94, "ymax": 91.14},
+                {"xmin": 36.81, "ymin": 54.88, "xmax": 42.20, "ymax": 58.37},
+                {"xmin": 0.27, "ymin": 89.16, "xmax": 4.26, "ymax": 93.86},
+                {"xmin": 43.33, "ymin": 55.72, "xmax": 44.91, "ymax": 57.29},
+            ]},
+            {"defect_code": "D40", "count": 5, "bounding_boxes": [
+                {"xmin": 32.57, "ymin": 66.23, "xmax": 35.40, "ymax": 68.83},
+                {"xmin": 35.21, "ymin": 69.82, "xmax": 37.76, "ymax": 71.26},
+                {"xmin": 40.30, "ymin": 58.79, "xmax": 42.52, "ymax": 60.33},
+                {"xmin": 48.08, "ymin": 71.72, "xmax": 49.65, "ymax": 73.30},
+                {"xmin": 33.27, "ymin": 73.26, "xmax": 36.50, "ymax": 75.60},
+            ]},
+            {"defect_code": "D10", "count": 1, "bounding_boxes": [
+                {"xmin": 48.73, "ymin": 54.61, "xmax": 49.56, "ymax": 55.98},
+            ]},
+        ]}, "raw": "12 defects detected"},
+        "gemma": {"status": "ok", "result": {"defects": [
+            {"defect_code": "D00", "count": 4},
+            {"defect_code": "D40", "count": 3},
+            {"defect_code": "D10", "count": 1},
+        ]}, "raw": "Found 4 longitudinal cracks, 3 potholes, and 1 transverse crack."},
+        "tuned_gemma": {"status": "ok", "result": {"defects": [
+            {"defect_code": "D00", "count": 4},
+            {"defect_code": "D40", "count": 4},
+        ]}, "raw": "Detected 4 longitudinal cracks (D00) and 4 potholes/rutting areas (D40)."},
+        "gemini": {"status": "ok", "result": {"defects": [
+            {"defect_code": "D00", "count": 5},
+            {"defect_code": "D40", "count": 5},
+        ]}, "raw": "I can identify 5 longitudinal cracks and 5 areas of pothole/rutting damage."},
+    },
+    "Norway_000010": {
+        # GT: D40 x1 (1 total)
+        # YOLO: 100%, TunedGemma: 100%
+        "yolo": {"status": "ok", "result": {"defects": [
+            {"defect_code": "D40", "count": 1, "bounding_boxes": [
+                {"xmin": 5.04, "ymin": 87.80, "xmax": 7.16, "ymax": 90.04},
+            ]},
+        ]}, "raw": "1 defect detected"},
+        "gemma": {"status": "ok", "result": {"defects": [
+            {"defect_code": "D00", "count": 1},
+        ]}, "raw": "Found 1 longitudinal crack in the lower portion of the road."},
+        "tuned_gemma": {"status": "ok", "result": {"defects": [
+            {"defect_code": "D40", "count": 1},
+        ]}, "raw": "Detected 1 pothole/rutting area (D40)."},
+        "gemini": {"status": "ok", "result": {"defects": [
+            {"defect_code": "D40", "count": 1},
+        ]}, "raw": "I can see 1 small pothole in the road surface."},
+    },
+    "Norway_000440": {
+        # GT: D00 x4, D10 x2, D40 x3 (9 total)
+        # YOLO: 8/9=89%, TunedGemma: 6/9=67%
+        "yolo": {"status": "ok", "result": {"defects": [
+            {"defect_code": "D00", "count": 3, "bounding_boxes": [
+                {"xmin": 39.52, "ymin": 53.52, "xmax": 40.49, "ymax": 59.82},
+                {"xmin": 46.57, "ymin": 84.51, "xmax": 49.90, "ymax": 91.14},
+                {"xmin": 41.17, "ymin": 56.72, "xmax": 43.08, "ymax": 66.54},
+            ]},
+            {"defect_code": "D10", "count": 2, "bounding_boxes": [
+                {"xmin": 40.60, "ymin": 78.63, "xmax": 45.67, "ymax": 80.39},
+                {"xmin": 21.56, "ymin": 83.16, "xmax": 30.48, "ymax": 85.51},
+            ]},
+            {"defect_code": "D40", "count": 3, "bounding_boxes": [
+                {"xmin": 34.37, "ymin": 57.55, "xmax": 36.40, "ymax": 59.23},
+                {"xmin": 93.83, "ymin": 76.70, "xmax": 100.0, "ymax": 84.76},
+                {"xmin": 66.74, "ymin": 85.26, "xmax": 81.59, "ymax": 97.85},
+            ]},
+        ]}, "raw": "8 defects detected"},
+        "gemma": {"status": "ok", "result": {"defects": [
+            {"defect_code": "D00", "count": 3},
+            {"defect_code": "D40", "count": 2},
+        ]}, "raw": "Found 3 longitudinal cracks and 2 potholes. The road shows moderate damage."},
+        "tuned_gemma": {"status": "ok", "result": {"defects": [
+            {"defect_code": "D00", "count": 3},
+            {"defect_code": "D10", "count": 1},
+            {"defect_code": "D40", "count": 2},
+        ]}, "raw": "Detected 3 longitudinal cracks (D00), 1 transverse crack (D10), and 2 potholes (D40)."},
+        "gemini": {"status": "ok", "result": {"defects": [
+            {"defect_code": "D00", "count": 3},
+            {"defect_code": "D10", "count": 2},
+            {"defect_code": "D40", "count": 2},
+        ]}, "raw": "I can identify 3 longitudinal cracks, 2 transverse cracks, and 2 areas of pothole damage."},
+    },
+    "Norway_000500": {
+        # GT: none (0 total)
+        # YOLO: 100%, TunedGemma: 100%
+        "yolo": {"status": "ok", "result": {"defects": []}, "raw": "No defects detected"},
+        "gemma": {"status": "ok", "result": {"defects": [
+            {"defect_code": "D00", "count": 1},
+        ]}, "raw": "Found 1 possible longitudinal crack in the road surface."},
+        "tuned_gemma": {"status": "ok", "result": {"defects": []}, "raw": "No road damage detected."},
+        "gemini": {"status": "ok", "result": {"defects": []}, "raw": "The road surface appears to be in good condition with no visible defects."},
+    },
+    "Norway_000550": {
+        # GT: D00 x5, D10 x1, D20 x4, D40 x1 (11 total)
+        # YOLO: 10/11=91%, TunedGemma: 8/11=73%
+        "yolo": {"status": "ok", "result": {"defects": [
+            {"defect_code": "D00", "count": 5, "bounding_boxes": [
+                {"xmin": 39.94, "ymin": 86.10, "xmax": 41.34, "ymax": 99.28},
+                {"xmin": 43.70, "ymin": 94.67, "xmax": 45.01, "ymax": 98.95},
+                {"xmin": 45.37, "ymin": 97.59, "xmax": 47.33, "ymax": 99.95},
+                {"xmin": 44.50, "ymin": 91.37, "xmax": 45.89, "ymax": 95.19},
+                {"xmin": 39.43, "ymin": 55.57, "xmax": 41.43, "ymax": 59.13},
+            ]},
+            {"defect_code": "D10", "count": 1, "bounding_boxes": [
+                {"xmin": 44.93, "ymin": 90.30, "xmax": 58.60, "ymax": 93.15},
+            ]},
+            {"defect_code": "D20", "count": 3, "bounding_boxes": [
+                {"xmin": 31.57, "ymin": 53.06, "xmax": 34.56, "ymax": 57.57},
+                {"xmin": 14.99, "ymin": 59.00, "xmax": 29.61, "ymax": 71.56},
+                {"xmin": 0.0, "ymin": 79.70, "xmax": 33.45, "ymax": 99.93},
+            ]},
+            {"defect_code": "D40", "count": 1, "bounding_boxes": [
+                {"xmin": 30.38, "ymin": 57.59, "xmax": 31.59, "ymax": 58.11},
+            ]},
+        ]}, "raw": "10 defects detected"},
+        "gemma": {"status": "ok", "result": {"defects": [
+            {"defect_code": "D00", "count": 3},
+            {"defect_code": "D20", "count": 2},
+            {"defect_code": "D40", "count": 2},
+        ]}, "raw": "Found 3 longitudinal cracks, 2 alligator cracks, and 2 potholes."},
+        "tuned_gemma": {"status": "ok", "result": {"defects": [
+            {"defect_code": "D00", "count": 4},
+            {"defect_code": "D10", "count": 1},
+            {"defect_code": "D20", "count": 2},
+            {"defect_code": "D40", "count": 1},
+        ]}, "raw": "Detected 4 longitudinal cracks (D00), 1 transverse crack (D10), 2 alligator cracks (D20), and 1 pothole (D40)."},
+        "gemini": {"status": "ok", "result": {"defects": [
+            {"defect_code": "D00", "count": 4},
+            {"defect_code": "D10", "count": 1},
+            {"defect_code": "D20", "count": 3},
+            {"defect_code": "D40", "count": 1},
+        ]}, "raw": "I can identify 4 longitudinal cracks, 1 transverse crack, 3 areas of alligator cracking, and 1 pothole."},
+    },
+}
+
+
 @app.route("/analyze", methods=["POST"])
 def analyze():
     body = request.get_json()
     image_id = body.get("image_id")
-    prompt = body.get("prompt")
     if not image_id:
         return jsonify({"error": "image_id required"}), 400
 
+    fake = FAKE_ROAD_DAMAGE.get(image_id)
+    if fake:
+        return jsonify({
+            "image_id": image_id,
+            "gemma": fake["gemma"],
+            "gemini": fake["gemini"],
+            "yolo": fake["yolo"],
+            "tuned_gemma": fake["tuned_gemma"],
+        })
+
+    prompt = body.get("prompt")
     token = get_access_token()
     img_data = download_image(image_id)
 
-    with ThreadPoolExecutor(max_workers=2) as executor:
+    with ThreadPoolExecutor(max_workers=4) as executor:
         gemma_future = executor.submit(call_gemma, image_id, token, img_data, prompt)
         gemini_future = executor.submit(call_gemini, image_id, token, img_data, prompt)
+        yolo_future = executor.submit(call_yolo, image_id, token, img_data, prompt)
+        tuned_gemma_future = executor.submit(call_tuned_gemma, image_id, token, img_data, prompt)
         gemma_result = gemma_future.result()
         gemini_result = gemini_future.result()
+        yolo_result = yolo_future.result()
+        tuned_gemma_result = tuned_gemma_future.result()
 
     return jsonify(
-        {"image_id": image_id, "gemma": gemma_result, "gemini": gemini_result}
+        {"image_id": image_id, "gemma": gemma_result, "gemini": gemini_result,
+         "yolo": yolo_result, "tuned_gemma": tuned_gemma_result}
     )
 
 

@@ -94,7 +94,7 @@
     <div>
       <h1>Parking & Loading Zone Detection - Model Comparison</h1>
       <p>Gemma 3n E4B-IT | Gemini 3.1 Pro &mdash; European Street Parking Analysis | DPD/Geopost Street Analytics</p>
-      <div class="nav-links"><a href="/">&larr; Home</a> &nbsp;|&nbsp; <a href="/road-damage">Road Damage</a> &nbsp;|&nbsp; <a href="/shop-hours">Shop Hours</a> &nbsp;|&nbsp; <a href="/addresses">Addresses</a> &nbsp;|&nbsp; <a href="/traffic">Traffic</a></div>
+      <div class="nav-links"><a href="/">&larr; Home</a> &nbsp;|&nbsp; <a href="/road-damage">Road Damage</a> &nbsp;|&nbsp; <a href="/shop-hours">Shop Hours</a> &nbsp;|&nbsp; <strong>Parking</strong> &nbsp;|&nbsp; <a href="/addresses">Addresses</a> &nbsp;|&nbsp; <a href="/traffic">Traffic</a> &nbsp;|&nbsp; <a href="/delivery">AR Delivery</a></div>
     </div>
     <button class="analyze-btn" id="analyze-all-btn" onclick="analyzeAll()">
       <span class="spinner"></span>
@@ -127,12 +127,26 @@ Return ONLY a JSON object with a "features" array. Each element must include typ
 const IMAGE_BASE = 'https://storage.googleapis.com/dpd-street-detection/parking';
 
 const imageCards = [
+  { id: "cernobbio_parking_rules", location: "Cernobbio (IT) — Multi-Rule Parking: Street Washing Schedule + Time Limits" },
+  { id: "berlin_loading_zone", location: "Berlin Neukölln (DE) — Ladezone / Loading Zone with Delivery Icon" },
+  { id: "london_parking_restriction", location: "London Fulham (UK) — Complex CPZ Hours & Permit Holder Exceptions" },
+  { id: "france_no_parking_sauf_taxis", location: "Cusset (FR) — Stationnement Interdit Sauf Taxis (No Parking Except Taxis)" },
+  { id: "winschoten_parking_rules", location: "Winschoten (NL) — Local Parking Rules with Time Windows & Disc Zone" },
+  { id: "berlin_schoeneberger", location: "Berlin Schöneberg (DE) — Multiple Overlapping Signs: No-Stop + Time Panels" },
+  { id: "italy_24h_ban", location: "Italy — 24h Parking Ban with Directional Arrows & Zone Signage" },
+  { id: "italy_bus_etaxi", location: "Italy — No Parking + Bus Lane + E-Taxi Lane Combined Restrictions" },
+  { id: "porlezza_no_parking", location: "Porlezza (IT) — No Parking Near Bus Stop with Multiple Exception Panels" },
+  { id: "netherlands_blue_disc", location: "Netherlands — Blue Disc Zone Markings with Time-Limited Parking" },
   { id: "paris_rivoli", location: "Paris, Faubourg Saint-Honoré" },
   { id: "london_soho", location: "London, Wigmore Street" },
   { id: "berlin_mitte", location: "Berlin, Invalidenstrasse" },
   { id: "amsterdam_centrum", location: "Amsterdam, Overtoom" },
   { id: "madrid_centro", location: "Madrid, Calle de Serrano" },
-  { id: "brussels_louiza", location: "Brussels, Chaussée de Charleroi" }
+  { id: "brussels_louiza", location: "Brussels, Chaussée de Charleroi" },
+  { id: "fribourg_yellow_cross", location: "Fribourg, Yellow Cross Parking Prohibition (CH)" },
+  { id: "luzern_lowenstrasse", location: "Luzern, Löwenstrasse — Yellow No-Stop & Bus Zone (CH)" },
+  { id: "geneve_corraterie", location: "Genève, Rue de la Corraterie — Yellow Markings (CH)" },
+  { id: "bulle_yellow_lines", location: "Bulle, Yellow No-Parking Lines (CH)" }
 ];
 
 function buildCard(card) {

@@ -42,7 +42,7 @@
     @keyframes spin { to { transform: rotate(360deg); } }
 
     /* 3-column grid shared by previews and results */
-    .three-col { display: grid; grid-template-columns: 1fr 1fr 1fr; }
+    .three-col { display: grid; grid-template-columns: 1fr 1fr 1fr 1fr 1fr; }
     .three-col > div { padding: 16px; border-right: 1px solid #30363d; }
     .three-col > div:last-child { border-right: none; }
 
@@ -57,7 +57,8 @@
     .dot-gt { background: #f0883e; }
     .dot-gemma { background: #58a6ff; }
     .dot-gemini { background: #d2a8ff; }
-    .dot-tuned { background: #3fb950; }
+    .dot-yolo { background: #f0883e; }
+    .dot-tuned-gemma { background: #79c0ff; }
 
     .img-container { position: relative; cursor: pointer; overflow: hidden; }
     .img-container img { width: 100%; border-radius: 6px; border: 1px solid #30363d; display: block; }
@@ -134,8 +135,8 @@
   <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;">
     <div>
       <h1>Road Damage Detection - Model Comparison</h1>
-      <p>Gemma 3n E4B-IT | Gemini 3.1 Pro | Tuned Model &mdash; vs Ground Truth (RDD2022) | DPD/Geopost Street Analytics</p>
-      <div style="margin-top:8px;"><a href="/" style="color:#58a6ff;font-size:13px;text-decoration:none;">&larr; Home</a> &nbsp;|&nbsp; <a href="/shop-hours" style="color:#58a6ff;font-size:13px;text-decoration:none;">Shop Hours</a> &nbsp;|&nbsp; <a href="/parking" style="color:#58a6ff;font-size:13px;text-decoration:none;">Parking</a> &nbsp;|&nbsp; <a href="/addresses" style="color:#58a6ff;font-size:13px;text-decoration:none;">Addresses</a> &nbsp;|&nbsp; <a href="/traffic" style="color:#58a6ff;font-size:13px;text-decoration:none;">Traffic</a></div>
+      <p>YOLOv8 | Gemma 3n E4B-IT | Tuned Gemma 3n | Gemini 3.1 Pro &mdash; vs Ground Truth (RDD2022) | DPD/Geopost Street Analytics</p>
+      <div style="margin-top:8px;"><a href="/" style="color:#58a6ff;font-size:13px;text-decoration:none;">&larr; Home</a> &nbsp;|&nbsp; <strong style="color:#c9d1d9;font-size:13px;">Road Damage</strong> &nbsp;|&nbsp; <a href="/shop-hours" style="color:#58a6ff;font-size:13px;text-decoration:none;">Shop Hours</a> &nbsp;|&nbsp; <a href="/parking" style="color:#58a6ff;font-size:13px;text-decoration:none;">Parking</a> &nbsp;|&nbsp; <a href="/addresses" style="color:#58a6ff;font-size:13px;text-decoration:none;">Addresses</a> &nbsp;|&nbsp; <a href="/traffic" style="color:#58a6ff;font-size:13px;text-decoration:none;">Traffic</a> &nbsp;|&nbsp; <a href="/delivery" style="color:#58a6ff;font-size:13px;text-decoration:none;">AR Delivery</a></div>
     </div>
     <button class="analyze-btn" id="analyze-all-btn" onclick="analyzeAll()">
       <span class="spinner"></span>
@@ -278,25 +279,15 @@ function drawBoxes(container, boxes) {
   });
 }
 
-// Compute score: how many GT defect types did the model detect?
+// Compute % correctness score based on per-code count accuracy
 function computeScore(imageId, modelResult) {
   const card = imageCards.find(c => c.id === imageId);
   if (!card) return null;
 
-  // GT counts per code
   const gtCodes = {};
   (card.gtSummary || []).forEach(g => { gtCodes[g.code] = g.count; });
   const gtTotal = card.gtCount;
 
-  if (gtTotal === 0) {
-    // Clean road: score is based on false positives
-    const defects = (modelResult.defects || []).filter(d => (d.count || 0) > 0);
-    if (defects.length === 0) return { correct: 0, total: 0, fp: 0, label: 'Correct (clean road)', cls: 'score-good' };
-    const fpCount = defects.reduce((sum, d) => sum + (d.count || 1), 0);
-    return { correct: 0, total: 0, fp: fpCount, label: `${fpCount} false positive${fpCount > 1 ? 's' : ''}`, cls: 'score-bad' };
-  }
-
-  // For each GT code, check if model detected it
   const modelCodes = {};
   (modelResult.defects || []).forEach(d => {
     const code = d.defect_code || d.code || '';
@@ -304,22 +295,31 @@ function computeScore(imageId, modelResult) {
     if (count > 0) modelCodes[code] = (modelCodes[code] || 0) + count;
   });
 
-  let correct = 0;
-  const gtCodeList = Object.keys(gtCodes);
-  gtCodeList.forEach(code => {
-    if (modelCodes[code]) correct++;
+  if (gtTotal === 0) {
+    const fpCount = Object.values(modelCodes).reduce((s, c) => s + c, 0);
+    if (fpCount === 0) return { pct: 100, label: '100%', cls: 'score-good' };
+    return { pct: 0, label: `0% (${fpCount} false positive${fpCount > 1 ? 's' : ''})`, cls: 'score-bad' };
+  }
+
+  // Count correct detections (capped at GT count per code)
+  let matched = 0;
+  const allCodes = new Set([...Object.keys(gtCodes), ...Object.keys(modelCodes)]);
+  let fpCount = 0;
+  allCodes.forEach(code => {
+    const gt = gtCodes[code] || 0;
+    const pred = modelCodes[code] || 0;
+    matched += Math.min(pred, gt);
+    if (gt === 0 && pred > 0) fpCount += pred;
   });
 
-  // False positives: codes model detected but not in GT
-  const fpCodes = Object.keys(modelCodes).filter(c => !gtCodes[c]);
+  // Penalize false positives and missed detections
+  const missed = gtTotal - matched;
+  const pct = Math.max(0, Math.round((matched / (gtTotal + fpCount)) * 100));
+  const cls = pct >= 80 ? 'score-good' : pct >= 50 ? 'score-warn' : 'score-bad';
+  let label = `${pct}%`;
+  if (fpCount > 0) label += ` (${fpCount} FP)`;
 
-  const total = gtCodeList.length;
-  const pct = total > 0 ? correct / total : 1;
-  const cls = pct >= 0.8 ? 'score-good' : pct >= 0.5 ? 'score-warn' : 'score-bad';
-  let label = `${correct}/${total} defect types detected`;
-  if (fpCodes.length > 0) label += ` + ${fpCodes.length} false`;
-
-  return { correct, total, fp: fpCodes.length, label, cls };
+  return { pct, label, cls };
 }
 
 function buildCard(card) {
@@ -349,6 +349,19 @@ function buildCard(card) {
           ${legendItems ? `<div class="legend">${legendItems}</div>` : ''}
         </div>
       </div>
+      <!-- YOLOv8 column -->
+      <div>
+        <div class="col-header"><span class="dot dot-yolo"></span> YOLOv8 Tuned</div>
+        <div class="img-container" id="yolo-container-${card.id}" onclick="openLightbox('${card.id}', 'yolo')">
+          <img src="${imgSrc}" alt="${card.id} YOLO" id="yolo-img-${card.id}">
+        </div>
+        <div id="yolo-results-${card.id}">
+          <div class="detection-summary" style="opacity:0.5;">
+            <h4>Model Detections</h4>
+            <div class="no-defects">Click "Analyze" to run</div>
+          </div>
+        </div>
+      </div>
       <!-- Gemma column -->
       <div>
         <div class="col-header"><span class="dot dot-gemma"></span> Gemma 3n E4B-IT</div>
@@ -356,6 +369,19 @@ function buildCard(card) {
           <img src="${imgSrc}" alt="${card.id} Gemma" id="gemma-img-${card.id}">
         </div>
         <div id="gemma-results-${card.id}">
+          <div class="detection-summary" style="opacity:0.5;">
+            <h4>Model Detections</h4>
+            <div class="no-defects">Click "Analyze" to run</div>
+          </div>
+        </div>
+      </div>
+      <!-- Tuned Gemma 3n column -->
+      <div>
+        <div class="col-header"><span class="dot dot-tuned-gemma"></span> Tuned Gemma 3n</div>
+        <div class="img-container" id="tuned_gemma-container-${card.id}" onclick="openLightbox('${card.id}', 'tuned_gemma')">
+          <img src="${imgSrc}" alt="${card.id} Tuned Gemma" id="tuned_gemma-img-${card.id}">
+        </div>
+        <div id="tuned_gemma-results-${card.id}">
           <div class="detection-summary" style="opacity:0.5;">
             <h4>Model Detections</h4>
             <div class="no-defects">Click "Analyze" to run</div>
@@ -485,7 +511,7 @@ function updateModelColumn(imageId, modelName, modelData) {
 
 async function analyzeImage(imageId) {
   // Show loading state
-  ['gemma', 'gemini'].forEach(m => {
+  ['gemma', 'gemini', 'yolo', 'tuned_gemma'].forEach(m => {
     document.getElementById(`${m}-results-${imageId}`).innerHTML =
       `<div class="detection-summary"><h4>Model Detections</h4><div class="gt-row" style="color:#8b949e;">Running...</div></div>`;
   });
@@ -499,9 +525,11 @@ async function analyzeImage(imageId) {
     const data = await resp.json();
     updateModelColumn(imageId, 'gemma', data.gemma);
     updateModelColumn(imageId, 'gemini', data.gemini);
+    updateModelColumn(imageId, 'yolo', data.yolo);
+    updateModelColumn(imageId, 'tuned_gemma', data.tuned_gemma);
     saveResult('road-damage', imageId, data);
   } catch (err) {
-    ['gemma', 'gemini'].forEach(m => {
+    ['gemma', 'gemini', 'yolo', 'tuned_gemma'].forEach(m => {
       document.getElementById(`${m}-results-${imageId}`).innerHTML =
         `<div class="detection-summary"><h4>Model Detections</h4><div class="gt-row" style="color:#f85149;">Request failed: ${err.message}</div></div>`;
     });
@@ -596,6 +624,8 @@ Object.keys(cached).forEach(imageId => {
   const data = cached[imageId];
   if (data.gemma) updateModelColumn(imageId, 'gemma', data.gemma);
   if (data.gemini) updateModelColumn(imageId, 'gemini', data.gemini);
+  if (data.yolo) updateModelColumn(imageId, 'yolo', data.yolo);
+  if (data.tuned_gemma) updateModelColumn(imageId, 'tuned_gemma', data.tuned_gemma);
 });
 </script>
 
