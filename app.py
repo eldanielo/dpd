@@ -132,16 +132,18 @@ DELIVERY_PROMPT_IMAGE = (
     "the exact delivery location in this street-level image.\n\n"
     "The customer left the following delivery note:\n"
     "\"{delivery_note}\"\n\n"
-    "Draw directly on the image to guide the driver:\n"
-    "- Draw a clear arrow pointing to the exact delivery location "
-    "(the door, gate, or entrance where the package should be left)\n"
-    "- Circle or highlight only the delivery target\n"
-    "- Add a short text label like \"DELIVER HERE\" near the target\n"
-    "- Do NOT label landmarks, shops, or other reference points - "
-    "only mark where to deliver\n\n"
-    "Make the annotations bold, bright, and easy to see at a glance. "
-    "Use green or red colors for visibility. "
-    "Return the annotated image."
+    "IMPORTANT: You MUST edit and return the input image with clear visual "
+    "annotations drawn on top of it. Do not return text only — return the "
+    "modified image.\n\n"
+    "Annotations to draw on the image:\n"
+    "- A large, bold arrow (bright green or red) pointing to the exact "
+    "delivery location (the door, gate, or entrance)\n"
+    "- A circle or rectangle highlighting the delivery target\n"
+    "- A text label \"DELIVER HERE\" placed near the target\n"
+    "- If the note mentions an alternative (e.g. neighbor, porch), draw a "
+    "second smaller arrow labeled \"ALTERNATIVE\" pointing there\n\n"
+    "Use thick lines and bright neon colors (green, red, yellow) so "
+    "annotations are impossible to miss. Return the annotated image."
 )
 
 
@@ -1497,6 +1499,14 @@ GCS_CRASH_IMAGE_BASE = "gs://dpd-street-detection/crash"
 GCS_PUBLIC_BASE_CRASH = "https://storage.googleapis.com/dpd-street-detection/crash"
 
 
+def download_crash_video():
+    """Download crash video from GCS and return raw bytes."""
+    url = f"{GCS_PUBLIC_BASE_CRASH}/crash_rearend_truck.mp4"
+    resp = http_requests.get(url, timeout=60)
+    resp.raise_for_status()
+    return resp.content
+
+
 def download_crash_frame(frame_id):
     """Download crash frame from GCS and return raw bytes."""
     url = f"{GCS_PUBLIC_BASE_CRASH}/{frame_id}.jpg"
@@ -1510,69 +1520,61 @@ def analyze_crash():
     body = request.get_json()
     frame_ids = body.get("frame_ids", [])
     prompt = body.get("prompt", "")
-
-    if not frame_ids:
-        return jsonify({"error": "frame_ids required"}), 400
-
     token = get_access_token()
-    gemma_results = []
-    gemini_results = []
 
-    for frame_id in frame_ids:
+    def call_gemma():
+        """Send key frames as multi-image request to Gemma 3n (video not supported on this endpoint)."""
         try:
-            img_data = download_crash_frame(frame_id)
-            img_b64 = base64.b64encode(img_data).decode()
+            content_parts = []
+            for frame_id in frame_ids:
+                img_data = download_crash_frame(frame_id)
+                img_b64 = base64.b64encode(img_data).decode()
+                content_parts.append({"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{img_b64}"}})
+            content_parts.append({"type": "text", "text": prompt})
+            payload = {
+                "model": "google/gemma-3n-E4B-it",
+                "messages": [{"role": "user", "content": content_parts}],
+                "max_tokens": 3000, "temperature": 0,
+            }
+            resp = http_requests.post(GEMMA_ENDPOINT,
+                headers={"Authorization": f"Bearer {token}", "Content-Type": "application/json"},
+                json=payload, timeout=180)
+            resp.raise_for_status()
+            raw = resp.json()["choices"][0]["message"]["content"]
+            parsed = parse_generic_json(raw, "crash")
+            return {"status": "ok", "result": parsed, "raw": raw}
         except Exception as e:
-            gemma_results.append({"status": "error", "error": f"Download failed: {e}"})
-            gemini_results.append({"status": "error", "error": f"Download failed: {e}"})
-            continue
+            return {"status": "error", "error": str(e)}
 
-        def call_gemma(b64=img_b64, p=prompt):
-            try:
-                payload = {
-                    "model": "google/gemma-3n-E4B-it",
-                    "messages": [{"role": "user", "content": [
-                        {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{b64}"}},
-                        {"type": "text", "text": p},
-                    ]}],
-                    "max_tokens": 2000, "temperature": 0,
-                }
-                resp = http_requests.post(GEMMA_ENDPOINT,
-                    headers={"Authorization": f"Bearer {token}", "Content-Type": "application/json"},
-                    json=payload, timeout=120)
-                resp.raise_for_status()
-                raw = resp.json()["choices"][0]["message"]["content"]
-                parsed = parse_generic_json(raw, "crash")
-                return {"status": "ok", "result": parsed, "raw": raw}
-            except Exception as e:
-                return {"status": "error", "error": str(e)}
+    def call_gemini():
+        """Send full video to Gemini for analysis."""
+        try:
+            video_data = download_crash_video()
+            video_b64 = base64.b64encode(video_data).decode()
+            payload = {
+                "contents": [{"role": "user", "parts": [
+                    {"inlineData": {"mimeType": "video/mp4", "data": video_b64}},
+                    {"text": prompt},
+                ]}],
+                "generationConfig": {"maxOutputTokens": 3000, "temperature": 0},
+            }
+            resp = http_requests.post(GEMINI_ENDPOINT,
+                headers={"Authorization": f"Bearer {token}", "Content-Type": "application/json"},
+                json=payload, timeout=180)
+            resp.raise_for_status()
+            raw = resp.json()["candidates"][0]["content"]["parts"][-1]["text"]
+            parsed = parse_generic_json(raw, "crash")
+            return {"status": "ok", "result": parsed, "raw": raw}
+        except Exception as e:
+            return {"status": "error", "error": str(e)}
 
-        def call_gemini(b64=img_b64, p=prompt):
-            try:
-                payload = {
-                    "contents": [{"role": "user", "parts": [
-                        {"inlineData": {"mimeType": "image/jpeg", "data": b64}},
-                        {"text": p},
-                    ]}],
-                    "generationConfig": {"maxOutputTokens": 2000, "temperature": 0},
-                }
-                resp = http_requests.post(GEMINI_ENDPOINT,
-                    headers={"Authorization": f"Bearer {token}", "Content-Type": "application/json"},
-                    json=payload, timeout=120)
-                resp.raise_for_status()
-                raw = resp.json()["candidates"][0]["content"]["parts"][-1]["text"]
-                parsed = parse_generic_json(raw, "crash")
-                return {"status": "ok", "result": parsed, "raw": raw}
-            except Exception as e:
-                return {"status": "error", "error": str(e)}
+    with ThreadPoolExecutor(max_workers=2) as executor:
+        gf = executor.submit(call_gemma)
+        gef = executor.submit(call_gemini)
+        gemma_result = gf.result()
+        gemini_result = gef.result()
 
-        with ThreadPoolExecutor(max_workers=2) as executor:
-            gf = executor.submit(call_gemma)
-            gef = executor.submit(call_gemini)
-            gemma_results.append(gf.result())
-            gemini_results.append(gef.result())
-
-    return jsonify({"gemma": gemma_results, "gemini": gemini_results})
+    return jsonify({"gemma": gemma_result, "gemini": gemini_result})
 
 
 if __name__ == "__main__":

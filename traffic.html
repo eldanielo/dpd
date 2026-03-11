@@ -143,7 +143,6 @@ const IMAGE_BASE = 'https://storage.googleapis.com/dpd-street-detection/traffic'
 
 const imageCards = [
   { id: "mannheim_road_closed", location: "Mannheim-Seckenheim (DE) \u2014 Road Closed to Through Traffic, Residents Only" },
-  { id: "frankfurt_resurfacing", location: "Frankfurt Hauptwache (DE) \u2014 Road Resurfacing with Lane Closures & Asphalt Machines" },
   { id: "berlin_intersection_closure", location: "Berlin Altes Stadthaus (DE) \u2014 Intersection Closure with Barriers & Speed Limit" },
   { id: "berlin_lane_closure", location: "Berlin Landsberger Allee (DE) \u2014 Lane Closure with Barriers & Construction Equipment" },
   { id: "cornwall_road_construction", location: "Truro, Cornwall (UK) \u2014 Active Road Construction with Cones & Barriers" },
@@ -156,6 +155,10 @@ function buildCard(card) {
   <div class="image-card" id="card-${card.id}">
     <div class="image-card-header">
       <h2>${card.location}</h2>
+      <button class="analyze-btn" id="btn-${card.id}" onclick="analyzeSingle('${card.id}')">
+        <span class="spinner"></span>
+        <span>Analyze</span>
+      </button>
     </div>
     <div class="image-preview">
       <img src="${imgSrc}" alt="${card.location}" onclick="openLightbox('${card.id}')">
@@ -254,6 +257,17 @@ async function analyzeImage(imageId) {
         `<div class="detection-summary"><h4>Detected Obstacles</h4><div class="restr-row" style="color:#f85149;">Request failed: ${err.message}</div></div>`;
     });
   }
+}
+
+async function analyzeSingle(imageId) {
+  const btn = document.getElementById(`btn-${imageId}`);
+  btn.classList.add('loading');
+  btn.disabled = true;
+  btn.querySelector('span:last-child').textContent = 'Analyzing...';
+  await analyzeImage(imageId);
+  btn.classList.remove('loading');
+  btn.disabled = false;
+  btn.querySelector('span:last-child').textContent = 'Re-analyze';
 }
 
 async function analyzeAll() {

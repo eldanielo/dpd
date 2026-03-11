@@ -181,18 +181,20 @@
 
 <div class="prompt-section">
   <h3>Gemini Image Prompt (delivery note is injected per scenario)</h3>
-  <textarea class="prompt-box" id="prompt-editor" rows="10">You are an AR delivery assistant AI. A DPD delivery driver needs to find the exact delivery location in this street-level image.
+  <textarea class="prompt-box" id="prompt-editor" rows="12">You are an AR delivery assistant AI. A DPD delivery driver needs to find the exact delivery location in this street-level image.
 
 The customer left the following delivery note:
 "{DELIVERY_NOTE}"
 
-Draw directly on the image to guide the driver:
-- Draw a clear arrow pointing to the exact delivery location (the door, gate, or entrance where the package should be left)
-- Circle or highlight only the delivery target
-- Add a short text label like "DELIVER HERE" near the target
-- Do NOT label landmarks, shops, or other reference points - only mark where to deliver
+IMPORTANT: You MUST edit and return the input image with clear visual annotations drawn on top of it. Do not return text only — return the modified image.
 
-Make the annotations bold, bright, and easy to see at a glance. Use green or red colors for visibility. Return the annotated image.</textarea>
+Annotations to draw on the image:
+- A large, bold arrow (bright green or red) pointing to the exact delivery location (the door, gate, or entrance)
+- A circle or rectangle highlighting the delivery target
+- A text label "DELIVER HERE" placed near the target
+- If the note mentions an alternative (e.g. neighbor, porch), draw a second smaller arrow labeled "ALTERNATIVE" pointing there
+
+Use thick lines and bright neon colors (green, red, yellow) so annotations are impossible to miss. Return the annotated image.</textarea>
 </div>
 
 <div class="lightbox" id="lightbox" onclick="closeLightbox()">
