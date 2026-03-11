@@ -105,7 +105,7 @@
     <div>
       <h1>Geopost Street AI Companion <span style="font-weight:400;color:#8b949e;">/ Construction Sites</span></h1>
       <p>Gemma 3n E4B-IT | Gemini 3.1 Pro &mdash; Construction Site Impact Analysis | Geopost Street AI Companion</p>
-      <div class="nav-links"><a href="/">&larr; Home</a> &nbsp;|&nbsp; <a href="/road-damage">Road Damage</a> &nbsp;|&nbsp; <a href="/shop-hours">Shop Hours</a> &nbsp;|&nbsp; <a href="/parking">Parking</a> &nbsp;|&nbsp; <a href="/addresses">Addresses</a> &nbsp;|&nbsp; <strong>Construction</strong> &nbsp;|&nbsp; <a href="/delivery">AR Delivery</a></div>
+      <div class="nav-links"><a href="/">&larr; Home</a> &nbsp;|&nbsp; <a href="/road-damage">Road Damage</a> &nbsp;|&nbsp; <a href="/shop-hours">Shop Hours</a> &nbsp;|&nbsp; <a href="/parking">Parking</a> &nbsp;|&nbsp; <a href="/addresses">Addresses</a> &nbsp;|&nbsp; <strong>Construction</strong> &nbsp;|&nbsp; <a href="/delivery">AR Delivery</a> &nbsp;|&nbsp; <a href="/crash">Crash</a></div>
     </div>
     <button class="analyze-btn" id="analyze-all-btn" onclick="analyzeAll()">
       <span class="spinner"></span>
@@ -145,9 +145,7 @@ const imageCards = [
   { id: "berlin_yorckstrasse", location: "Berlin, Yorckstrasse \u2014 S-Bahn Bridge Excavation & Heavy Machinery" },
   { id: "stuttgart_hbf_cranes", location: "Stuttgart 21 \u2014 Major Station Construction with Cranes" },
   { id: "stuttgart_road_barriers", location: "Stuttgart Hbf \u2014 Concrete Road Barriers & Lane Narrowing" },
-  { id: "copenhagen_scaffolding", location: "Copenhagen, City Hall \u2014 Scaffolding & Construction Fencing" },
-  { id: "berlin_invalidenstr", location: "Berlin, Invalidenstrasse \u2014 Scaffolding, Crane & Road Barriers" },
-  { id: "cologne_road_barriers", location: "Cologne, Innenstadt \u2014 Road Barriers at Intersection" }
+  { id: "copenhagen_scaffolding", location: "Copenhagen, City Hall \u2014 Scaffolding & Construction Fencing" }
 ];
 
 function buildCard(card) {

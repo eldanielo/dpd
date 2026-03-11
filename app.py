@@ -1082,6 +1082,11 @@ def delivery():
     return send_from_directory(".", "delivery.html")
 
 
+@app.route("/crash")
+def crash():
+    return send_from_directory(".", "crash.html")
+
+
 FAKE_ROAD_DAMAGE = {
     "Norway_000000": {
         # GT: D00 x4, D20 x1 (5 total)
@@ -1486,6 +1491,88 @@ def analyze_custom():
         "gemini": gemini_result,
         "tuned": {"status": "pending"},
     })
+
+
+GCS_CRASH_IMAGE_BASE = "gs://dpd-street-detection/crash"
+GCS_PUBLIC_BASE_CRASH = "https://storage.googleapis.com/dpd-street-detection/crash"
+
+
+def download_crash_frame(frame_id):
+    """Download crash frame from GCS and return raw bytes."""
+    url = f"{GCS_PUBLIC_BASE_CRASH}/{frame_id}.jpg"
+    resp = http_requests.get(url, timeout=30)
+    resp.raise_for_status()
+    return resp.content
+
+
+@app.route("/analyze-crash", methods=["POST"])
+def analyze_crash():
+    body = request.get_json()
+    frame_ids = body.get("frame_ids", [])
+    prompt = body.get("prompt", "")
+
+    if not frame_ids:
+        return jsonify({"error": "frame_ids required"}), 400
+
+    token = get_access_token()
+    gemma_results = []
+    gemini_results = []
+
+    for frame_id in frame_ids:
+        try:
+            img_data = download_crash_frame(frame_id)
+            img_b64 = base64.b64encode(img_data).decode()
+        except Exception as e:
+            gemma_results.append({"status": "error", "error": f"Download failed: {e}"})
+            gemini_results.append({"status": "error", "error": f"Download failed: {e}"})
+            continue
+
+        def call_gemma(b64=img_b64, p=prompt):
+            try:
+                payload = {
+                    "model": "google/gemma-3n-E4B-it",
+                    "messages": [{"role": "user", "content": [
+                        {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{b64}"}},
+                        {"type": "text", "text": p},
+                    ]}],
+                    "max_tokens": 2000, "temperature": 0,
+                }
+                resp = http_requests.post(GEMMA_ENDPOINT,
+                    headers={"Authorization": f"Bearer {token}", "Content-Type": "application/json"},
+                    json=payload, timeout=120)
+                resp.raise_for_status()
+                raw = resp.json()["choices"][0]["message"]["content"]
+                parsed = parse_generic_json(raw, "crash")
+                return {"status": "ok", "result": parsed, "raw": raw}
+            except Exception as e:
+                return {"status": "error", "error": str(e)}
+
+        def call_gemini(b64=img_b64, p=prompt):
+            try:
+                payload = {
+                    "contents": [{"role": "user", "parts": [
+                        {"inlineData": {"mimeType": "image/jpeg", "data": b64}},
+                        {"text": p},
+                    ]}],
+                    "generationConfig": {"maxOutputTokens": 2000, "temperature": 0},
+                }
+                resp = http_requests.post(GEMINI_ENDPOINT,
+                    headers={"Authorization": f"Bearer {token}", "Content-Type": "application/json"},
+                    json=payload, timeout=120)
+                resp.raise_for_status()
+                raw = resp.json()["candidates"][0]["content"]["parts"][-1]["text"]
+                parsed = parse_generic_json(raw, "crash")
+                return {"status": "ok", "result": parsed, "raw": raw}
+            except Exception as e:
+                return {"status": "error", "error": str(e)}
+
+        with ThreadPoolExecutor(max_workers=2) as executor:
+            gf = executor.submit(call_gemma)
+            gef = executor.submit(call_gemini)
+            gemma_results.append(gf.result())
+            gemini_results.append(gef.result())
+
+    return jsonify({"gemma": gemma_results, "gemini": gemini_results})
 
 
 if __name__ == "__main__":

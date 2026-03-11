@@ -86,6 +86,7 @@
     .feature-card.card-addr::before { background: linear-gradient(90deg, #3fb950, #3fb95060); }
     .feature-card.card-traffic::before { background: linear-gradient(90deg, #d29922, #d29a2860); }
     .feature-card.card-delivery::before { background: linear-gradient(90deg, #f778a1, #f778a160); }
+    .feature-card.card-crash::before { background: linear-gradient(90deg, #f97316, #f9731660); }
 
     .card-icon {
       width: 40px; height: 40px; border-radius: 10px; display: flex; align-items: center;
@@ -97,6 +98,7 @@
     .card-addr .card-icon { background: #3fb95018; }
     .card-traffic .card-icon { background: #d2992218; }
     .card-delivery .card-icon { background: #f778a118; }
+    .card-crash .card-icon { background: #f9731618; }
 
     .feature-card h2 { font-size: 17px; font-weight: 700; margin-bottom: 8px; letter-spacing: -0.2px; }
     .feature-card p { color: #8b949e; font-size: 13px; line-height: 1.6; flex: 1; }
@@ -113,6 +115,7 @@
     .tag-addr { background: #3fb95015; color: #3fb950; border: 1px solid #3fb95030; }
     .tag-traffic { background: #d2992215; color: #d29922; border: 1px solid #d2992230; }
     .tag-delivery { background: #f778a115; color: #f778a1; border: 1px solid #f778a130; }
+    .tag-crash { background: #f9731615; color: #f97316; border: 1px solid #f9731630; }
     .card-arrow { color: #484f58; font-size: 18px; transition: transform 0.2s, color 0.2s; }
     .feature-card:hover .card-arrow { transform: translateX(4px); color: #e1e4e8; }
 
@@ -301,6 +304,15 @@
       <p>AI reads the customer's delivery note and annotates the street view image, highlighting exactly where to deliver the parcel.</p>
       <div class="card-meta">
         <span class="card-tag tag-delivery">6 delivery scenarios</span>
+        <span class="card-arrow">&rarr;</span>
+      </div>
+    </a>
+    <a class="feature-card card-crash" href="/crash">
+      <div class="card-icon">&#128165;</div>
+      <h2>Crash Detection</h2>
+      <p>Analyze dashcam video of a collision to generate structured insurance reports. Detect crash phases, vehicles, fault indicators, and damage.</p>
+      <div class="card-meta">
+        <span class="card-tag tag-crash">Video frame analysis</span>
         <span class="card-arrow">&rarr;</span>
       </div>
     </a>
