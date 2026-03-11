@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Traffic - DPD AI Road Companion</title>
+  <title>Construction Sites - Geopost Street AI Companion</title>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body { font-family: 'Segoe UI', system-ui, sans-serif; background: #0f1117; color: #e1e4e8; }
@@ -70,6 +70,16 @@
     .restr-impact.impact-low { background: #23883040; color: #3fb950; border: 1px solid #23883060; }
     .restr-impact.impact-none { background: #30363d; color: #8b949e; border: 1px solid #30363d; }
 
+    .site-assess { border-radius: 6px; padding: 12px 14px; margin-bottom: 12px; }
+    .site-assess.assess-yes { background: #23883018; border: 1px solid #23883050; }
+    .site-assess.assess-no { background: #da363318; border: 1px solid #da363350; }
+    .site-assess.assess-caution { background: #d29a2818; border: 1px solid #d29a2850; }
+    .site-assess .verdict { font-size: 14px; font-weight: 700; margin-bottom: 4px; }
+    .site-assess .verdict.v-yes { color: #3fb950; }
+    .site-assess .verdict.v-no { color: #f85149; }
+    .site-assess .verdict.v-caution { color: #d29922; }
+    .site-assess .action { font-size: 12px; color: #8b949e; }
+
     .detection-summary { background: #0d1117; border: 1px solid #30363d; border-radius: 6px; padding: 12px; }
     .detection-summary h4 { font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px; color: #8b949e; margin-bottom: 8px; }
 
@@ -93,9 +103,9 @@
 <header>
   <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;">
     <div>
-      <h1>DPD AI Road Companion <span style="font-weight:400;color:#8b949e;">/ Traffic</span></h1>
-      <p>Gemma 3n E4B-IT | Gemini 3.1 Pro &mdash; European Traffic Restriction Analysis | DPD AI Road Companion</p>
-      <div class="nav-links"><a href="/">&larr; Home</a> &nbsp;|&nbsp; <a href="/road-damage">Road Damage</a> &nbsp;|&nbsp; <a href="/shop-hours">Shop Hours</a> &nbsp;|&nbsp; <a href="/parking">Parking</a> &nbsp;|&nbsp; <a href="/addresses">Addresses</a> &nbsp;|&nbsp; <strong>Traffic</strong> &nbsp;|&nbsp; <a href="/delivery">AR Delivery</a></div>
+      <h1>Geopost Street AI Companion <span style="font-weight:400;color:#8b949e;">/ Construction Sites</span></h1>
+      <p>Gemma 3n E4B-IT | Gemini 3.1 Pro &mdash; Construction Site Impact Analysis | Geopost Street AI Companion</p>
+      <div class="nav-links"><a href="/">&larr; Home</a> &nbsp;|&nbsp; <a href="/road-damage">Road Damage</a> &nbsp;|&nbsp; <a href="/shop-hours">Shop Hours</a> &nbsp;|&nbsp; <a href="/parking">Parking</a> &nbsp;|&nbsp; <a href="/addresses">Addresses</a> &nbsp;|&nbsp; <strong>Construction</strong> &nbsp;|&nbsp; <a href="/delivery">AR Delivery</a></div>
     </div>
     <button class="analyze-btn" id="analyze-all-btn" onclick="analyzeAll()">
       <span class="spinner"></span>
@@ -107,14 +117,18 @@
 
 <div class="prompt-section">
   <h3>Prompt (same for all models)</h3>
-  <textarea class="prompt-box" id="prompt-editor" rows="10">You are a traffic restriction detection AI analyzing street-level images of European cities. Identify all traffic signs, restrictions, and regulations visible in the image that could affect a delivery van.
+  <textarea class="prompt-box" id="prompt-editor" rows="12">You are a construction site detection AI analyzing street-level images of European cities for delivery drivers. Identify all construction-related obstacles, barriers, restrictions, and hazards visible in the image that could affect a delivery van navigating this area.
 
-For each restriction found, provide:
-- type: the type of restriction (e.g. "weight_limit", "height_limit", "no_entry", "one_way", "pedestrian_zone", "ZTL", "time_restriction", "speed_limit", "no_trucks", "low_emission_zone")
-- description: brief description of what the sign/restriction indicates
-- impact: impact on a standard DPD delivery van ("high", "medium", "low", "none")
+For each finding, provide:
+- type: the type of obstacle (e.g. "scaffolding", "road_barrier", "lane_closure", "construction_fence", "crane", "excavation", "detour_sign", "temporary_traffic_light", "road_narrowing", "sidewalk_closure", "heavy_machinery", "construction_hoarding")
+- description: brief description of what you see and how it affects the road/access
+- impact: impact on a delivery van trying to pass or deliver here ("high", "medium", "low", "none")
 
-Return ONLY a JSON object with a "restrictions" array. Each element must include type, description, and impact.</textarea>
+Also provide an overall assessment:
+- passable: can a delivery van safely navigate through this area? ("yes", "no", "with_caution")
+- recommended_action: practical advice for the driver
+
+Return ONLY a JSON object with a "obstacles" array and an "assessment" object containing passable and recommended_action.</textarea>
 </div>
 
 <div class="lightbox" id="lightbox" onclick="closeLightbox()">
@@ -128,12 +142,12 @@ Return ONLY a JSON object with a "restrictions" array. Each element must include
 const IMAGE_BASE = 'https://storage.googleapis.com/dpd-street-detection/traffic';
 
 const imageCards = [
-  { id: "paris_montmartre", location: "Paris, Rue de Rennes" },
-  { id: "london_city", location: "London, Ludgate Hill" },
-  { id: "munich_altstadt", location: "Munich, Altstadt" },
-  { id: "prague_oldtown", location: "Prague, Old Town" },
-  { id: "rome_trastevere", location: "Rome, Trastevere" },
-  { id: "barcelona_gothic", location: "Florence, Centro Storico" }
+  { id: "berlin_yorckstrasse", location: "Berlin, Yorckstrasse \u2014 S-Bahn Bridge Excavation & Heavy Machinery" },
+  { id: "stuttgart_hbf_cranes", location: "Stuttgart 21 \u2014 Major Station Construction with Cranes" },
+  { id: "stuttgart_road_barriers", location: "Stuttgart Hbf \u2014 Concrete Road Barriers & Lane Narrowing" },
+  { id: "copenhagen_scaffolding", location: "Copenhagen, City Hall \u2014 Scaffolding & Construction Fencing" },
+  { id: "berlin_invalidenstr", location: "Berlin, Invalidenstrasse \u2014 Scaffolding, Crane & Road Barriers" },
+  { id: "cologne_road_barriers", location: "Cologne, Innenstadt \u2014 Road Barriers at Intersection" }
 ];
 
 function buildCard(card) {
@@ -151,7 +165,7 @@ function buildCard(card) {
         <div class="col-header"><span class="dot dot-gemma"></span> Gemma 3n E4B-IT</div>
         <div id="gemma-results-${card.id}">
           <div class="detection-summary" style="opacity:0.5;">
-            <h4>Detected Restrictions</h4>
+            <h4>Detected Obstacles</h4>
             <div class="no-results">Click "Analyze" to run</div>
           </div>
         </div>
@@ -160,7 +174,7 @@ function buildCard(card) {
         <div class="col-header"><span class="dot dot-gemini"></span> Gemini 3.1 Pro</div>
         <div id="gemini-results-${card.id}">
           <div class="detection-summary" style="opacity:0.5;">
-            <h4>Detected Restrictions</h4>
+            <h4>Detected Obstacles</h4>
             <div class="no-results">Click "Analyze" to run</div>
           </div>
         </div>
@@ -169,24 +183,39 @@ function buildCard(card) {
   </div>`;
 }
 
+function renderAssessment(a) {
+  if (!a) return '';
+  const p = (a.passable || 'with_caution').toLowerCase();
+  const cls = p === 'yes' ? 'assess-yes' : p === 'no' ? 'assess-no' : 'assess-caution';
+  const vcls = p === 'yes' ? 'v-yes' : p === 'no' ? 'v-no' : 'v-caution';
+  const label = p === 'yes' ? 'PASSABLE' : p === 'no' ? 'NOT PASSABLE' : 'PASSABLE WITH CAUTION';
+  return `<div class="site-assess ${cls}">
+    <div class="verdict ${vcls}">${label}</div>
+    ${a.recommended_action ? `<div class="action">\u27A4 ${a.recommended_action}</div>` : ''}
+  </div>`;
+}
+
 function renderResults(imageId, modelResult, containerId) {
   const el = document.getElementById(containerId);
   if (!el) return;
 
   if (modelResult.status === 'error') {
-    el.innerHTML = `<div class="detection-summary"><h4>Detected Restrictions</h4>
+    el.innerHTML = `<div class="detection-summary"><h4>Detected Obstacles</h4>
       <div class="restr-row" style="color:#f85149;">Error: ${modelResult.error}</div></div>`;
     return;
   }
 
   const parsed = modelResult.result || {};
-  const restrictions = parsed.restrictions || [];
+  const obstacles = parsed.obstacles || parsed.restrictions || [];
+  const assessment = parsed.assessment || null;
+
+  let assessHtml = renderAssessment(assessment);
 
   let rows = '';
-  if (restrictions.length === 0) {
-    rows = '<div class="no-results">No restrictions detected</div>';
+  if (obstacles.length === 0) {
+    rows = '<div class="no-results">No obstacles detected</div>';
   } else {
-    rows = restrictions.map(r => {
+    rows = obstacles.map(r => {
       const impact = (r.impact || 'none').toLowerCase();
       const impactCls = impact === 'high' ? 'impact-high' : impact === 'medium' ? 'impact-medium' : impact === 'low' ? 'impact-low' : 'impact-none';
       const impactLabel = impact.charAt(0).toUpperCase() + impact.slice(1);
@@ -197,8 +226,8 @@ function renderResults(imageId, modelResult, containerId) {
     }).join('');
   }
 
-  el.innerHTML = `<div class="detection-summary">
-    <h4>Detected Restrictions <span style="font-size:11px;color:#8b949e;font-weight:400;">(${restrictions.length} found)</span></h4>
+  el.innerHTML = `${assessHtml}<div class="detection-summary">
+    <h4>Detected Obstacles <span style="font-size:11px;color:#8b949e;font-weight:400;">(${obstacles.length} found)</span></h4>
     ${rows}
   </div>`;
 }
@@ -206,7 +235,7 @@ function renderResults(imageId, modelResult, containerId) {
 async function analyzeImage(imageId) {
   ['gemma', 'gemini'].forEach(m => {
     document.getElementById(`${m}-results-${imageId}`).innerHTML =
-      `<div class="detection-summary"><h4>Detected Restrictions</h4><div class="restr-row" style="color:#8b949e;">Running...</div></div>`;
+      `<div class="detection-summary"><h4>Detected Obstacles</h4><div class="restr-row" style="color:#8b949e;">Running...</div></div>`;
   });
 
   try {
@@ -222,7 +251,7 @@ async function analyzeImage(imageId) {
   } catch (err) {
     ['gemma', 'gemini'].forEach(m => {
       document.getElementById(`${m}-results-${imageId}`).innerHTML =
-        `<div class="detection-summary"><h4>Detected Restrictions</h4><div class="restr-row" style="color:#f85149;">Request failed: ${err.message}</div></div>`;
+        `<div class="detection-summary"><h4>Detected Obstacles</h4><div class="restr-row" style="color:#f85149;">Request failed: ${err.message}</div></div>`;
     });
   }
 }

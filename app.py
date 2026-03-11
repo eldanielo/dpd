@@ -112,18 +112,19 @@ ADDRESSES_PROMPT = (
 )
 
 TRAFFIC_PROMPT = (
-    "You are a traffic restriction detection AI analyzing street-level images of "
-    "European cities. Identify all traffic signs, restrictions, and regulations "
-    "visible in the image that could affect a delivery van.\n\n"
-    "For each restriction found, provide:\n"
-    "- type: the type of restriction (e.g. \"weight_limit\", \"height_limit\", "
-    "\"no_entry\", \"one_way\", \"pedestrian_zone\", \"ZTL\", \"time_restriction\", "
-    "\"speed_limit\", \"no_trucks\", \"low_emission_zone\")\n"
-    "- description: brief description of what the sign/restriction indicates\n"
-    "- impact: impact on a standard DPD delivery van (\"high\", \"medium\", \"low\", "
-    "\"none\")\n\n"
-    "Return ONLY a JSON object (no markdown fences) with a \"restrictions\" array. "
-    "Each element must include type, description, and impact."
+    "You are a construction site detection AI analyzing street-level images of "
+    "European cities. Identify all construction-related obstacles visible in the "
+    "image that could affect a delivery van passing through.\n\n"
+    "For each obstacle found, provide:\n"
+    "- type: the type of obstacle (e.g. \"scaffolding\", \"road_barrier\", "
+    "\"crane\", \"excavation\", \"construction_fencing\", \"lane_narrowing\", "
+    "\"temporary_traffic_light\", \"heavy_machinery\", \"road_closure\")\n"
+    "- description: brief description of the obstacle and its extent\n"
+    "- impact: impact on a standard DPD delivery van (\"high\", \"medium\", \"low\")\n\n"
+    "Also provide an \"assessment\" object with:\n"
+    "- passable: whether a delivery van can pass (\"yes\", \"no\", \"with_caution\")\n"
+    "- recommended_action: what the driver should do\n\n"
+    "Return ONLY a JSON object with an \"obstacles\" array and an \"assessment\" object."
 )
 
 DELIVERY_PROMPT_IMAGE = (
@@ -966,7 +967,7 @@ def call_gemma_traffic(image_id, token, img_data, prompt=None):
                 {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{img_b64}"}},
                 {"type": "text", "text": prompt or TRAFFIC_PROMPT},
             ]}],
-            "max_tokens": 1500, "temperature": 0,
+            "max_tokens": 4096, "temperature": 0,
         }
         resp = http_requests.post(GEMMA_ENDPOINT, headers={
             "Authorization": f"Bearer {token}", "Content-Type": "application/json",
@@ -974,10 +975,10 @@ def call_gemma_traffic(image_id, token, img_data, prompt=None):
         resp.raise_for_status()
         data = resp.json()
         raw_text = data["choices"][0]["message"]["content"]
-        parsed = parse_generic_json(raw_text, "restrictions")
+        parsed = parse_generic_json(raw_text, "obstacles")
         return {"status": "ok", "result": parsed, "raw": raw_text}
     except Exception as e:
-        return {"status": "error", "error": str(e), "result": {"restrictions": []}}
+        return {"status": "error", "error": str(e), "result": {"obstacles": []}}
 
 
 def call_gemini_traffic(image_id, token, img_data, prompt=None):
@@ -988,7 +989,7 @@ def call_gemini_traffic(image_id, token, img_data, prompt=None):
                 {"fileData": {"mimeType": "image/jpeg", "fileUri": f"{GCS_TRAFFIC_IMAGE_BASE}/{image_id}.jpg"}},
                 {"text": prompt or TRAFFIC_PROMPT},
             ]}],
-            "generationConfig": {"maxOutputTokens": 1500, "temperature": 0},
+            "generationConfig": {"maxOutputTokens": 4096, "temperature": 0, "responseMimeType": "application/json"},
         }
         resp = http_requests.post(GEMINI_ENDPOINT, headers={
             "Authorization": f"Bearer {token}", "Content-Type": "application/json",
@@ -996,10 +997,10 @@ def call_gemini_traffic(image_id, token, img_data, prompt=None):
         resp.raise_for_status()
         data = resp.json()
         raw_text = data["candidates"][0]["content"]["parts"][-1]["text"]
-        parsed = parse_generic_json(raw_text, "restrictions")
+        parsed = parse_generic_json(raw_text, "obstacles")
         return {"status": "ok", "result": parsed, "raw": raw_text}
     except Exception as e:
-        return {"status": "error", "error": str(e), "result": {"restrictions": []}}
+        return {"status": "error", "error": str(e), "result": {"obstacles": []}}
 
 
 def call_gemini_delivery(image_id, token, img_data, prompt=None):
