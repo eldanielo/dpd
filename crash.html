@@ -50,7 +50,6 @@
       overflow: hidden; cursor: pointer; transition: border-color 0.2s;
     }
     .frame-card:hover { border-color: #58a6ff; }
-    .frame-card.selected { border-color: #58a6ff; box-shadow: 0 0 0 2px #58a6ff40; }
     .frame-card img { width: 100%; display: block; }
     .frame-card .frame-label {
       padding: 4px 8px; font-size: 11px; color: #8b949e; text-align: center;
@@ -76,6 +75,9 @@
       display: flex; align-items: center; gap: 6px;
     }
     .col-header .dot { width: 8px; height: 8px; border-radius: 50%; }
+    .col-header .badge { font-size: 10px; padding: 2px 6px; border-radius: 3px; font-weight: 600; margin-left: auto; }
+    .badge-video { background: #d2a8ff20; color: #d2a8ff; border: 1px solid #d2a8ff40; }
+    .badge-frames { background: #58a6ff20; color: #58a6ff; border: 1px solid #58a6ff40; }
     .dot-gemma { background: #58a6ff; }
     .dot-gemini { background: #d2a8ff; }
     .result-body {
@@ -83,23 +85,10 @@
     }
     .result-body .waiting { color: #484f58; font-style: italic; }
     .result-body .error { color: #f85149; }
-    .result-body pre {
-      background: #0d1117; border: 1px solid #30363d; border-radius: 6px;
-      padding: 12px; font-family: 'SF Mono', 'Fira Code', monospace; font-size: 12px;
-      line-height: 1.6; white-space: pre-wrap; word-break: break-word;
-      max-height: 500px; overflow-y: auto;
-    }
 
     .report-field { margin-bottom: 12px; }
     .report-field .label { font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; color: #8b949e; margin-bottom: 4px; font-weight: 600; }
     .report-field .value { color: #e1e4e8; }
-    .severity-badge {
-      display: inline-block; padding: 2px 8px; border-radius: 4px;
-      font-size: 11px; font-weight: 700; text-transform: uppercase;
-    }
-    .severity-high { background: #da363330; color: #f85149; border: 1px solid #da363360; }
-    .severity-medium { background: #d29a2840; color: #d29922; border: 1px solid #d29a2860; }
-    .severity-low { background: #23883040; color: #3fb950; border: 1px solid #23883060; }
 
     .lightbox { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: #000000ee; z-index: 1000; justify-content: center; align-items: center; cursor: zoom-out; }
     .lightbox.active { display: flex; }
@@ -118,12 +107,12 @@
   <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;">
     <div>
       <h1>Geopost Street AI Companion <span style="font-weight:400;color:#8b949e;">/ Crash Detection</span></h1>
-      <p>Complex Event Detection &mdash; Understanding crash context for insurance reports | Gemma 3n | Gemini 3.1 Pro</p>
+      <p>Complex Event Detection &mdash; Video analysis for insurance reports | Gemma 3n (key frames) | Gemini 3.1 Pro (full video)</p>
       <div class="nav-links"><a href="/">&larr; Home</a> &nbsp;|&nbsp; <a href="/road-damage">Road Damage</a> &nbsp;|&nbsp; <a href="/shop-hours">Shop Hours</a> &nbsp;|&nbsp; <a href="/parking">Parking</a> &nbsp;|&nbsp; <a href="/addresses">Addresses</a> &nbsp;|&nbsp; <a href="/traffic">Traffic</a> &nbsp;|&nbsp; <a href="/delivery">AR Delivery</a> &nbsp;|&nbsp; <strong>Crash Detection</strong></div>
     </div>
-    <button class="analyze-btn" id="analyze-btn" onclick="analyzeFrames()">
+    <button class="analyze-btn" id="analyze-btn" onclick="analyzeVideo()">
       <span class="spinner"></span>
-      <span>Analyze All Frames</span>
+      <span>Analyze Video</span>
     </button>
   </div>
 </header>
@@ -137,29 +126,30 @@
 
   <div class="video-section">
     <video controls preload="metadata">
-      <source src="https://storage.googleapis.com/dpd-street-detection/crash/crash_highway_rearend.mp4" type="video/mp4">
+      <source src="https://storage.googleapis.com/dpd-street-detection/crash/crash_rearend_truck.mp4" type="video/mp4">
       Your browser does not support the video tag.
     </video>
   </div>
 
   <div class="frames-section">
-    <h3>Key Frames &mdash; click to enlarge, then analyze for insurance report</h3>
+    <h3>Key Frames &mdash; extracted from video for reference</h3>
     <div class="frames-grid" id="frames-grid"></div>
   </div>
 
   <div class="prompt-section">
-    <h3>Prompt (sent with each frame)</h3>
-    <textarea class="prompt-box" id="prompt-editor" rows="12">You are an AI crash analysis assistant for an insurance company. Analyze this dashcam frame and generate a structured incident report.
+    <h3>Prompt (sent with the video / key frames)</h3>
+    <textarea class="prompt-box" id="prompt-editor" rows="12">You are an AI crash analysis assistant for an insurance company. Analyze this dashcam footage and generate a single structured incident report.
 
 Provide:
-- timestamp: the dashcam timestamp visible in the frame (if readable)
-- phase: one of "pre-incident", "incident", "post-incident"
-- description: 1-2 sentence description of what is happening in this frame
-- vehicles_visible: number and types of vehicles visible
+- incident_summary: 2-3 sentence overview of the entire incident
+- timeline: array of key moments with timestamp and description
+- vehicles_involved: number, types, and roles of vehicles involved
 - road_conditions: highway type, lanes, weather, visibility
-- risk_factors: any contributing factors visible (speed, following distance, lane changes, construction zones, congestion)
-- damage_assessment: any visible damage or collision (if applicable)
-- fault_indicators: any visual evidence that could indicate fault (e.g. sudden braking, lane violation, tailgating)
+- speed_analysis: speeds observed before and during the incident
+- risk_factors: contributing factors (speed, following distance, lane changes, congestion)
+- damage_assessment: visible damage to the dashcam vehicle and others
+- fault_indicators: visual evidence indicating fault (sudden braking, tailgating, lane violation)
+- severity: "minor", "moderate", or "severe"
 
 Return ONLY a JSON object with these fields.</textarea>
   </div>
@@ -169,13 +159,13 @@ Return ONLY a JSON object with these fields.</textarea>
       <div class="result-card">
         <div class="col-header"><span class="dot dot-gemma"></span> Gemma 3n E4B-IT</div>
         <div class="result-body" id="gemma-results">
-          <div class="waiting">Click "Analyze All Frames" to generate insurance report</div>
+          <div class="waiting">Click "Analyze Video" to generate insurance report</div>
         </div>
       </div>
       <div class="result-card">
         <div class="col-header"><span class="dot dot-gemini"></span> Gemini 3.1 Pro</div>
         <div class="result-body" id="gemini-results">
-          <div class="waiting">Click "Analyze All Frames" to generate insurance report</div>
+          <div class="waiting">Click "Analyze Video" to generate insurance report</div>
         </div>
       </div>
     </div>
@@ -187,12 +177,12 @@ Return ONLY a JSON object with these fields.</textarea>
 const CRASH_BASE = 'https://storage.googleapis.com/dpd-street-detection/crash';
 
 const frames = [
-  { id: 'frame_001', time: '07:59:58', phase: 'before', label: 'Normal driving' },
-  { id: 'frame_005', time: '08:00:02', phase: 'before', label: 'Clear highway' },
-  { id: 'frame_015', time: '08:00:12', phase: 'approach', label: 'Approaching traffic' },
-  { id: 'frame_020', time: '08:00:17', phase: 'approach', label: 'Congestion ahead' },
-  { id: 'frame_025', time: '08:00:22', phase: 'impact', label: 'Collision zone' },
-  { id: 'frame_028', time: '08:00:25', phase: 'after', label: 'Post-impact' },
+  { id: 'frame_001', time: '17:00:14', phase: 'before', label: 'Highway driving 120km/h' },
+  { id: 'frame_005', time: '17:00:18', phase: 'before', label: 'Clear road ahead' },
+  { id: 'frame_015', time: '17:00:28', phase: 'approach', label: 'Approaching vehicles' },
+  { id: 'frame_021', time: '17:00:34', phase: 'approach', label: 'Close to truck 109km/h' },
+  { id: 'frame_022', time: '17:00:35', phase: 'impact', label: 'Rear-end collision' },
+  { id: 'frame_030', time: '17:00:42', phase: 'after', label: 'Stopped, hood deployed' },
 ];
 
 function buildFramesGrid() {
@@ -218,52 +208,71 @@ function openLightbox(frameId) {
 function closeLightbox() { document.getElementById('lightbox').classList.remove('active'); }
 document.addEventListener('keydown', e => { if (e.key === 'Escape') closeLightbox(); });
 
-function renderReport(containerId, results) {
+function renderReport(containerId, result) {
   const el = document.getElementById(containerId);
+
+  if (result.status === 'error') {
+    el.innerHTML = `<div class="error">Error: ${result.error}</div>`;
+    return;
+  }
+
+  const data = result.result || {};
   let html = '';
 
-  results.forEach((r, i) => {
-    const f = frames[i];
-    const phaseClass = f.phase === 'before' ? 'phase-before' :
-                       f.phase === 'approach' ? 'phase-approach' :
-                       f.phase === 'impact' ? 'phase-impact' : 'phase-after';
+  if (data.incident_summary) {
+    html += `<div class="report-field"><div class="label">Incident Summary</div><div class="value">${data.incident_summary}</div></div>`;
+  }
+  if (data.description) {
+    html += `<div class="report-field"><div class="label">Description</div><div class="value">${data.description}</div></div>`;
+  }
+  if (data.timeline) {
+    const tl = Array.isArray(data.timeline) ? data.timeline.map(t =>
+      `<div style="padding:4px 0;border-bottom:1px solid #30363d22;"><strong>${t.timestamp || ''}</strong> ${t.description || JSON.stringify(t)}</div>`
+    ).join('') : data.timeline;
+    html += `<div class="report-field"><div class="label">Timeline</div><div class="value">${tl}</div></div>`;
+  }
+  if (data.vehicles_involved) {
+    html += `<div class="report-field"><div class="label">Vehicles Involved</div><div class="value">${typeof data.vehicles_involved === 'object' ? JSON.stringify(data.vehicles_involved) : data.vehicles_involved}</div></div>`;
+  }
+  if (data.vehicles_visible) {
+    html += `<div class="report-field"><div class="label">Vehicles Visible</div><div class="value">${typeof data.vehicles_visible === 'object' ? JSON.stringify(data.vehicles_visible) : data.vehicles_visible}</div></div>`;
+  }
+  if (data.road_conditions) {
+    html += `<div class="report-field"><div class="label">Road Conditions</div><div class="value">${typeof data.road_conditions === 'object' ? JSON.stringify(data.road_conditions) : data.road_conditions}</div></div>`;
+  }
+  if (data.speed_analysis) {
+    html += `<div class="report-field"><div class="label">Speed Analysis</div><div class="value">${typeof data.speed_analysis === 'object' ? JSON.stringify(data.speed_analysis) : data.speed_analysis}</div></div>`;
+  }
+  if (data.risk_factors) {
+    html += `<div class="report-field"><div class="label">Risk Factors</div><div class="value">${Array.isArray(data.risk_factors) ? data.risk_factors.join(', ') : (typeof data.risk_factors === 'object' ? JSON.stringify(data.risk_factors) : data.risk_factors)}</div></div>`;
+  }
+  if (data.damage_assessment) {
+    html += `<div class="report-field"><div class="label">Damage Assessment</div><div class="value">${typeof data.damage_assessment === 'object' ? JSON.stringify(data.damage_assessment) : data.damage_assessment}</div></div>`;
+  }
+  if (data.fault_indicators) {
+    html += `<div class="report-field"><div class="label">Fault Indicators</div><div class="value">${Array.isArray(data.fault_indicators) ? data.fault_indicators.join(', ') : (typeof data.fault_indicators === 'object' ? JSON.stringify(data.fault_indicators) : data.fault_indicators)}</div></div>`;
+  }
+  if (data.severity) {
+    const sevClass = data.severity === 'severe' ? 'severity-high' : data.severity === 'moderate' ? 'severity-medium' : 'severity-low';
+    html += `<div class="report-field"><div class="label">Severity</div><div class="value"><span style="display:inline-block;padding:2px 8px;border-radius:4px;font-size:11px;font-weight:700;text-transform:uppercase;" class="${sevClass}">${data.severity}</span></div></div>`;
+  }
 
-    if (r.status === 'error') {
-      html += `<div class="report-field"><div class="label">Frame ${i+1} (${f.time})</div><div class="error">Error: ${r.error}</div></div>`;
-      return;
-    }
+  // Fallback: show raw JSON for any unrecognized fields
+  if (!html) {
+    html = `<pre>${JSON.stringify(data, null, 2)}</pre>`;
+  }
 
-    const data = r.result || {};
-    const sevClass = f.phase === 'impact' ? 'severity-high' : f.phase === 'approach' ? 'severity-medium' : 'severity-low';
-    const sevLabel = f.phase === 'impact' ? 'HIGH' : f.phase === 'approach' ? 'MEDIUM' : 'LOW';
-
-    html += `<div style="background:#0d1117;border:1px solid #30363d;border-radius:6px;padding:12px;margin-bottom:12px;">
-      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
-        <span style="font-weight:600;font-size:13px;">
-          <span class="${phaseClass}" style="text-transform:uppercase;font-size:11px;letter-spacing:0.5px;">${data.phase || f.phase}</span>
-          &mdash; ${data.timestamp || f.time}
-        </span>
-        <span class="severity-badge ${sevClass}">${sevLabel}</span>
-      </div>
-      <div class="report-field"><div class="label">Description</div><div class="value">${data.description || 'N/A'}</div></div>
-      ${data.vehicles_visible ? `<div class="report-field"><div class="label">Vehicles</div><div class="value">${typeof data.vehicles_visible === 'object' ? JSON.stringify(data.vehicles_visible) : data.vehicles_visible}</div></div>` : ''}
-      ${data.risk_factors ? `<div class="report-field"><div class="label">Risk Factors</div><div class="value">${Array.isArray(data.risk_factors) ? data.risk_factors.join(', ') : data.risk_factors}</div></div>` : ''}
-      ${data.damage_assessment ? `<div class="report-field"><div class="label">Damage</div><div class="value">${data.damage_assessment}</div></div>` : ''}
-      ${data.fault_indicators ? `<div class="report-field"><div class="label">Fault Indicators</div><div class="value">${Array.isArray(data.fault_indicators) ? data.fault_indicators.join(', ') : data.fault_indicators}</div></div>` : ''}
-    </div>`;
-  });
-
-  el.innerHTML = html || '<div class="waiting">No results</div>';
+  el.innerHTML = `<div style="background:#0d1117;border:1px solid #30363d;border-radius:6px;padding:16px;">${html}</div>`;
 }
 
-async function analyzeFrames() {
+async function analyzeVideo() {
   const btn = document.getElementById('analyze-btn');
   btn.classList.add('loading');
   btn.disabled = true;
   btn.querySelector('span:last-child').textContent = 'Analyzing...';
 
-  document.getElementById('gemma-results').innerHTML = '<div class="waiting">Analyzing 6 frames...</div>';
-  document.getElementById('gemini-results').innerHTML = '<div class="waiting">Analyzing 6 frames...</div>';
+  document.getElementById('gemma-results').innerHTML = '<div class="waiting">Analyzing key frames with Gemma 3n...</div>';
+  document.getElementById('gemini-results').innerHTML = '<div class="waiting">Analyzing full video with Gemini 3.1 Pro...</div>';
 
   try {
     const resp = await fetch('/analyze-crash', {
@@ -284,7 +293,7 @@ async function analyzeFrames() {
 
   btn.classList.remove('loading');
   btn.disabled = false;
-  btn.querySelector('span:last-child').textContent = 'Re-analyze All Frames';
+  btn.querySelector('span:last-child').textContent = 'Re-analyze Video';
 }
 
 buildFramesGrid();

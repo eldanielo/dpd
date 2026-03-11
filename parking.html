@@ -123,7 +123,7 @@
   <textarea class="prompt-box" id="prompt-editor" rows="14">You are a parking and loading zone detection AI analyzing street-level images of European cities for DPD delivery drivers. The current date/time is {{DATETIME}} ({{DAY_OF_WEEK}}).
 
 Identify all parking-related features visible in the image. For each feature found, provide:
-- type: the type of feature (e.g. "loading_zone", "no_parking_sign", "parking_meter", "restricted_parking", "available_spot", "disabled_parking", "time_limited_parking", "yellow_markings", "blue_zone")
+- type: the type of feature (e.g. "loading_zone", "no_parking_sign", "parking_meter", "restricted_parking", "available_spot", "disabled_parking", "time_limited_parking", "blue_zone")
 - description: brief description of what you see
 - suitability: whether this spot/zone is suitable for a DPD delivery van right now ("yes", "no", "maybe")
 
@@ -163,6 +163,10 @@ function buildCard(card) {
   <div class="image-card" id="card-${card.id}">
     <div class="image-card-header">
       <h2>${card.location}</h2>
+      <button class="analyze-btn" id="btn-${card.id}" onclick="analyzeSingle('${card.id}')">
+        <span class="spinner"></span>
+        <span>Analyze</span>
+      </button>
     </div>
     <div class="image-preview">
       <img src="${imgSrc}" alt="${card.location}" onclick="openLightbox('${card.id}')">
@@ -275,6 +279,17 @@ async function analyzeImage(imageId) {
         `<div class="detection-summary"><h4>Detected Features</h4><div class="feat-row" style="color:#f85149;">Request failed: ${err.message}</div></div>`;
     });
   }
+}
+
+async function analyzeSingle(imageId) {
+  const btn = document.getElementById(`btn-${imageId}`);
+  btn.classList.add('loading');
+  btn.disabled = true;
+  btn.querySelector('span:last-child').textContent = 'Analyzing...';
+  await analyzeImage(imageId);
+  btn.classList.remove('loading');
+  btn.disabled = false;
+  btn.querySelector('span:last-child').textContent = 'Re-analyze';
 }
 
 async function analyzeAll() {

@@ -139,6 +139,10 @@ function buildCard(card) {
   <div class="image-card" id="card-${card.id}">
     <div class="image-card-header">
       <h2>${card.location}</h2>
+      <button class="analyze-btn" id="btn-${card.id}" onclick="analyzeSingle('${card.id}')">
+        <span class="spinner"></span>
+        <span>Analyze</span>
+      </button>
     </div>
     <div class="image-preview">
       <img src="${imgSrc}" alt="${card.location}" onclick="openLightbox('${card.id}')">
@@ -222,6 +226,17 @@ async function analyzeImage(imageId) {
         `<div class="detection-summary"><h4>Detected Addresses</h4><div class="addr-row" style="color:#f85149;">Request failed: ${err.message}</div></div>`;
     });
   }
+}
+
+async function analyzeSingle(imageId) {
+  const btn = document.getElementById(`btn-${imageId}`);
+  btn.classList.add('loading');
+  btn.disabled = true;
+  btn.querySelector('span:last-child').textContent = 'Analyzing...';
+  await analyzeImage(imageId);
+  btn.classList.remove('loading');
+  btn.disabled = false;
+  btn.querySelector('span:last-child').textContent = 'Re-analyze';
 }
 
 async function analyzeAll() {

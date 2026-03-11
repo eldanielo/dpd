@@ -335,6 +335,10 @@ function buildCard(card) {
     <div class="image-card-header">
       <h2>${card.id}.jpg</h2>
       <span class="badge badge-${card.badge}">${card.gtCount} ground truth defect${card.gtCount !== 1 ? 's' : ''}</span>
+      <button class="analyze-btn" id="btn-${card.id}" onclick="analyzeSingle('${card.id}')">
+        <span class="spinner"></span>
+        <span>Analyze</span>
+      </button>
     </div>
     <div class="three-col image-previews">
       <!-- Ground Truth column -->
@@ -534,6 +538,17 @@ async function analyzeImage(imageId) {
         `<div class="detection-summary"><h4>Model Detections</h4><div class="gt-row" style="color:#f85149;">Request failed: ${err.message}</div></div>`;
     });
   }
+}
+
+async function analyzeSingle(imageId) {
+  const btn = document.getElementById(`btn-${imageId}`);
+  btn.classList.add('loading');
+  btn.disabled = true;
+  btn.querySelector('span:last-child').textContent = 'Analyzing...';
+  await analyzeImage(imageId);
+  btn.classList.remove('loading');
+  btn.disabled = false;
+  btn.querySelector('span:last-child').textContent = 'Re-analyze';
 }
 
 async function analyzeAll() {

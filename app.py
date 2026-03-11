@@ -712,10 +712,12 @@ def call_tuned_gemma(image_id, token, img_data, prompt=None):
 
 def download_hours_image(image_id):
     """Download shop hours image from GCS and return raw bytes."""
-    url = f"{GCS_PUBLIC_BASE_HOURS}/{image_id}.jpg"
-    resp = http_requests.get(url, timeout=30)
+    for ext in ("jpg", "png"):
+        url = f"{GCS_PUBLIC_BASE_HOURS}/{image_id}.{ext}"
+        resp = http_requests.get(url, timeout=30)
+        if resp.status_code == 200:
+            return resp.content, ext
     resp.raise_for_status()
-    return resp.content
 
 
 
@@ -737,10 +739,11 @@ def parse_hours_json(raw_text):
         return {"raw_response": raw_text, "shops": []}
 
 
-def call_gemma_hours(image_id, token, img_data, prompt=None):
+def call_gemma_hours(image_id, token, img_data, prompt=None, img_ext="jpg"):
     """Call Gemma 3n for shop hours detection."""
     try:
         img_b64 = base64.b64encode(img_data).decode()
+        mime = "image/png" if img_ext == "png" else "image/jpeg"
         payload = {
             "model": "google/gemma-3n-E4B-it",
             "messages": [
@@ -750,7 +753,7 @@ def call_gemma_hours(image_id, token, img_data, prompt=None):
                         {
                             "type": "image_url",
                             "image_url": {
-                                "url": f"data:image/jpeg;base64,{img_b64}"
+                                "url": f"data:{mime};base64,{img_b64}"
                             },
                         },
                         {"type": "text", "text": prompt or HOURS_PROMPT},
@@ -778,9 +781,10 @@ def call_gemma_hours(image_id, token, img_data, prompt=None):
         return {"status": "error", "error": str(e), "result": {"shops": []}}
 
 
-def call_gemini_hours(image_id, token, img_data, prompt=None):
+def call_gemini_hours(image_id, token, img_data, prompt=None, img_ext="jpg"):
     """Call Gemini 3.1 Pro for shop hours detection."""
     try:
+        mime = "image/png" if img_ext == "png" else "image/jpeg"
         payload = {
             "contents": [
                 {
@@ -788,8 +792,8 @@ def call_gemini_hours(image_id, token, img_data, prompt=None):
                     "parts": [
                         {
                             "fileData": {
-                                "mimeType": "image/jpeg",
-                                "fileUri": f"{GCS_HOURS_IMAGE_BASE}/{image_id}.jpg",
+                                "mimeType": mime,
+                                "fileUri": f"{GCS_HOURS_IMAGE_BASE}/{image_id}.{img_ext}",
                             }
                         },
                         {"text": prompt or HOURS_PROMPT},
@@ -834,10 +838,12 @@ def download_addresses_image(image_id):
 
 def download_traffic_image(image_id):
     """Download traffic image from GCS and return raw bytes."""
-    url = f"{GCS_PUBLIC_BASE_TRAFFIC}/{image_id}.jpg"
-    resp = http_requests.get(url, timeout=30)
+    for ext in ("jpg", "png"):
+        url = f"{GCS_PUBLIC_BASE_TRAFFIC}/{image_id}.{ext}"
+        resp = http_requests.get(url, timeout=30)
+        if resp.status_code == 200:
+            return resp.content, ext
     resp.raise_for_status()
-    return resp.content
 
 
 def download_delivery_image(image_id):
@@ -959,14 +965,15 @@ def call_gemini_addresses(image_id, token, img_data, prompt=None):
         return {"status": "error", "error": str(e), "result": {"addresses": []}}
 
 
-def call_gemma_traffic(image_id, token, img_data, prompt=None):
+def call_gemma_traffic(image_id, token, img_data, prompt=None, img_ext="jpg"):
     """Call Gemma 3n for traffic restriction detection."""
     try:
         img_b64 = base64.b64encode(img_data).decode()
+        mime = "image/png" if img_ext == "png" else "image/jpeg"
         payload = {
             "model": "google/gemma-3n-E4B-it",
             "messages": [{"role": "user", "content": [
-                {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{img_b64}"}},
+                {"type": "image_url", "image_url": {"url": f"data:{mime};base64,{img_b64}"}},
                 {"type": "text", "text": prompt or TRAFFIC_PROMPT},
             ]}],
             "max_tokens": 4096, "temperature": 0,
@@ -983,12 +990,13 @@ def call_gemma_traffic(image_id, token, img_data, prompt=None):
         return {"status": "error", "error": str(e), "result": {"obstacles": []}}
 
 
-def call_gemini_traffic(image_id, token, img_data, prompt=None):
+def call_gemini_traffic(image_id, token, img_data, prompt=None, img_ext="jpg"):
     """Call Gemini 3.1 Pro for traffic restriction detection."""
     try:
+        mime = "image/png" if img_ext == "png" else "image/jpeg"
         payload = {
             "contents": [{"role": "user", "parts": [
-                {"fileData": {"mimeType": "image/jpeg", "fileUri": f"{GCS_TRAFFIC_IMAGE_BASE}/{image_id}.jpg"}},
+                {"fileData": {"mimeType": mime, "fileUri": f"{GCS_TRAFFIC_IMAGE_BASE}/{image_id}.{img_ext}"}},
                 {"text": prompt or TRAFFIC_PROMPT},
             ]}],
             "generationConfig": {"maxOutputTokens": 4096, "temperature": 0, "responseMimeType": "application/json"},
@@ -1300,11 +1308,11 @@ def analyze_hours():
         return jsonify({"error": "image_id required"}), 400
 
     token = get_access_token()
-    img_data = download_hours_image(image_id)
+    img_data, img_ext = download_hours_image(image_id)
 
     with ThreadPoolExecutor(max_workers=2) as executor:
-        gemma_future = executor.submit(call_gemma_hours, image_id, token, img_data, prompt)
-        gemini_future = executor.submit(call_gemini_hours, image_id, token, img_data, prompt)
+        gemma_future = executor.submit(call_gemma_hours, image_id, token, img_data, prompt, img_ext)
+        gemini_future = executor.submit(call_gemini_hours, image_id, token, img_data, prompt, img_ext)
         gemma_result = gemma_future.result()
         gemini_result = gemini_future.result()
 
@@ -1366,11 +1374,11 @@ def analyze_traffic():
         return jsonify({"error": "image_id required"}), 400
 
     token = get_access_token()
-    img_data = download_traffic_image(image_id)
+    img_data, img_ext = download_traffic_image(image_id)
 
     with ThreadPoolExecutor(max_workers=2) as executor:
-        gemma_future = executor.submit(call_gemma_traffic, image_id, token, img_data, prompt)
-        gemini_future = executor.submit(call_gemini_traffic, image_id, token, img_data, prompt)
+        gemma_future = executor.submit(call_gemma_traffic, image_id, token, img_data, prompt, img_ext)
+        gemini_future = executor.submit(call_gemini_traffic, image_id, token, img_data, prompt, img_ext)
         gemma_result = gemma_future.result()
         gemini_result = gemini_future.result()
 

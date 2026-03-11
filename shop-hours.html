@@ -129,18 +129,21 @@ const IMAGE_BASE = 'https://storage.googleapis.com/dpd-street-detection/shop-hou
 
 const imageCards = [
   { id: "lisbon_cais_sodre", location: "Lisbon, Rua de São Paulo" },
-  { id: "berlin_bergmannstrasse", location: "Berlin, Simon-Dach-Strasse" },
   { id: "munich_viktualienmarkt", location: "Munich, Viktualienmarkt" },
-  { id: "brussels_neuve", location: "Brussels, Rue des Bouchers" },
-  { id: "amsterdam_9streets", location: "Amsterdam, Utrechtsestraat" }
+  { id: "amsterdam_9streets", location: "Amsterdam, Utrechtsestraat" },
+  { id: "paris_rue_des_canettes", location: "Paris, Rue des Canettes", ext: "png" }
 ];
 
 function buildCard(card) {
-  const imgSrc = `${IMAGE_BASE}/${card.id}.jpg`;
+  const imgSrc = `${IMAGE_BASE}/${card.id}.${card.ext || 'jpg'}`;
   return `
   <div class="image-card" id="card-${card.id}">
     <div class="image-card-header">
       <h2>${card.location}</h2>
+      <button class="analyze-btn" id="btn-${card.id}" onclick="analyzeSingle('${card.id}')">
+        <span class="spinner"></span>
+        <span>Analyze</span>
+      </button>
     </div>
     <div class="image-preview">
       <img src="${imgSrc}" alt="${card.location}" onclick="openLightbox('${card.id}')">
@@ -227,6 +230,17 @@ async function analyzeImage(imageId) {
   }
 }
 
+async function analyzeSingle(imageId) {
+  const btn = document.getElementById(`btn-${imageId}`);
+  btn.classList.add('loading');
+  btn.disabled = true;
+  btn.querySelector('span:last-child').textContent = 'Analyzing...';
+  await analyzeImage(imageId);
+  btn.classList.remove('loading');
+  btn.disabled = false;
+  btn.querySelector('span:last-child').textContent = 'Re-analyze';
+}
+
 async function analyzeAll() {
   const btn = document.getElementById('analyze-all-btn');
   const progress = document.getElementById('analyze-progress');
@@ -250,7 +264,9 @@ async function analyzeAll() {
 function openLightbox(imageId) {
   const lb = document.getElementById('lightbox');
   const inner = document.getElementById('lightbox-inner');
-  inner.innerHTML = `<img src="${IMAGE_BASE}/${imageId}.jpg" alt="${imageId}">`;
+  const card = imageCards.find(c => c.id === imageId);
+  const ext = card && card.ext ? card.ext : 'jpg';
+  inner.innerHTML = `<img src="${IMAGE_BASE}/${imageId}.${ext}" alt="${imageId}">`;
   lb.classList.add('active');
 }
 

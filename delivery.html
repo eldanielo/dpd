@@ -247,6 +247,10 @@ function buildCard(card) {
     <div class="image-card-header">
       <h2>${card.location}</h2>
       <span class="location-pin">Delivery scenario</span>
+      <button class="analyze-btn" id="btn-${card.id}" onclick="analyzeSingle('${card.id}')">
+        <span class="spinner"></span>
+        <span>Analyze</span>
+      </button>
     </div>
     <div class="delivery-note">
       <div class="delivery-note-label">&#128230; Customer Delivery Note</div>
@@ -320,6 +324,17 @@ async function analyzeImage(imageId) {
     document.getElementById(`gemini-results-${imageId}`).innerHTML =
       `<div class="error-msg">Request failed: ${err.message}</div>`;
   }
+}
+
+async function analyzeSingle(imageId) {
+  const btn = document.getElementById(`btn-${imageId}`);
+  btn.classList.add('loading');
+  btn.disabled = true;
+  btn.querySelector('span:last-child').textContent = 'Analyzing...';
+  await analyzeImage(imageId);
+  btn.classList.remove('loading');
+  btn.disabled = false;
+  btn.querySelector('span:last-child').textContent = 'Re-analyze';
 }
 
 async function analyzeAll() {
