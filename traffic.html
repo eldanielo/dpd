@@ -142,10 +142,12 @@ Return ONLY a JSON object with a "obstacles" array and an "assessment" object co
 const IMAGE_BASE = 'https://storage.googleapis.com/dpd-street-detection/traffic';
 
 const imageCards = [
-  { id: "berlin_yorckstrasse", location: "Berlin, Yorckstrasse \u2014 S-Bahn Bridge Excavation & Heavy Machinery" },
-  { id: "stuttgart_hbf_cranes", location: "Stuttgart 21 \u2014 Major Station Construction with Cranes" },
-  { id: "stuttgart_road_barriers", location: "Stuttgart Hbf \u2014 Concrete Road Barriers & Lane Narrowing" },
-  { id: "copenhagen_scaffolding", location: "Copenhagen, City Hall \u2014 Scaffolding & Construction Fencing" }
+  { id: "stuttgart_lane_closure", location: "Stuttgart 21 \u2014 Lane Closure with Delineators, Cranes & Traffic Congestion" },
+  { id: "stuttgart_intersection", location: "Stuttgart 21 \u2014 Intersection Barriers, Chevron Signs & Lane Diversions" },
+  { id: "stuttgart_hbf_cranes", location: "Stuttgart 21 \u2014 Major Station Construction with Cranes & Lane Narrowing" },
+  { id: "stuttgart_road_barriers", location: "Stuttgart Hbf \u2014 Concrete Road Barriers & Lane Channeling" },
+  { id: "vienna_u5_construction", location: "Vienna, Frankhplatz \u2014 U5 Metro Construction Hoarding & Road Narrowing" },
+  { id: "copenhagen_scaffolding", location: "Copenhagen, City Hall \u2014 Scaffolding & Barriers Encroaching Road" }
 ];
 
 function buildCard(card) {
