@@ -41,12 +41,17 @@
 
     .prompt-section {
       background: #161b22; border: 1px solid #30363d; border-radius: 10px;
-      margin: 24px 40px 0; padding: 20px;
+      margin: 24px 40px 0; padding: 0;
     }
-    .prompt-section h3 {
-      font-size: 12px; text-transform: uppercase; letter-spacing: 1px;
-      color: #8b949e; margin-bottom: 10px; font-weight: 600;
+    .prompt-toggle {
+      display: flex; align-items: center; justify-content: space-between; padding: 16px 20px;
+      cursor: pointer; user-select: none;
     }
+    .prompt-toggle h3 { font-size: 12px; text-transform: uppercase; letter-spacing: 1px; color: #8b949e; font-weight: 600; margin: 0; }
+    .prompt-toggle .chevron { color: #8b949e; font-size: 14px; transition: transform 0.2s; }
+    .prompt-section.collapsed .chevron { transform: rotate(-90deg); }
+    .prompt-section.collapsed .prompt-inner { display: none; }
+    .prompt-inner { padding: 0 20px 20px; }
     .prompt-box {
       background: #0d1117; border: 1px solid #30363d; border-radius: 8px;
       padding: 14px 16px; font-family: 'SF Mono', 'Fira Code', monospace; font-size: 13px;
@@ -116,7 +121,7 @@
     }
     .section-label .dot { width: 8px; height: 8px; border-radius: 50%; }
     .dot-original { background: #58a6ff; }
-    .dot-gemini { background: #d2a8ff; }
+    .dot-gemini { background: #00e5ff; }
 
     .image-preview img {
       width: 100%; border-radius: 8px; border: 1px solid #30363d;
@@ -125,16 +130,28 @@
     .image-preview img:hover { transform: scale(1.01); }
 
     .annotated-img {
-      width: 100%; border-radius: 8px; border: 1px solid #d2a8ff40;
+      width: 100%; border-radius: 6px; border: 1px solid #00e5ff30;
       display: block; cursor: zoom-in; transition: transform 0.2s;
-      box-shadow: 0 2px 16px #d2a8ff10;
+      box-shadow: 0 2px 20px #00e5ff10;
     }
-    .annotated-img:hover { transform: scale(1.01); }
+    .annotated-img:hover { transform: scale(1.01); box-shadow: 0 4px 28px #00e5ff18; }
+
+    .ai-analysis {
+      margin-top: 14px; padding: 14px 16px; background: #0d1117;
+      border: 1px solid #30363d; border-radius: 8px;
+      font-size: 13px; line-height: 1.65; color: #b1bac4;
+      border-left: 3px solid #00e5ff;
+    }
+    .ai-analysis-label {
+      font-size: 10px; text-transform: uppercase; letter-spacing: 1.2px;
+      color: #00e5ff; margin-bottom: 8px; font-weight: 700;
+    }
 
     .result-placeholder {
       display: flex; align-items: center; justify-content: center; flex-direction: column; gap: 10px;
       min-height: 200px; color: #484f58; font-size: 13px;
-      border: 2px dashed #30363d; border-radius: 8px;
+      border: 1px dashed #30363d; border-radius: 8px;
+      background: #0d111788;
     }
     .result-placeholder .ph-icon { font-size: 28px; opacity: 0.4; }
 
@@ -162,8 +179,7 @@
   <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;">
     <div>
       <h1>Geopost Street AI Companion <span style="font-weight:400;color:#8b949e;">/ AR Delivery</span></h1>
-      <p>Gemini 3 Pro Image Preview &mdash; Visual Delivery Guidance</p>
-      <div class="nav-links"><a href="/">&larr; Home</a> &nbsp;|&nbsp; <a href="/road-damage">Road Damage</a> &nbsp;|&nbsp; <a href="/shop-hours">Shop Hours</a> &nbsp;|&nbsp; <a href="/parking">Parking</a> &nbsp;|&nbsp; <a href="/addresses">Addresses</a> &nbsp;|&nbsp; <a href="/traffic">Construction</a> &nbsp;|&nbsp; <strong>AR Delivery</strong> &nbsp;|&nbsp; <a href="/crash">Crash</a></div>
+      <div class="nav-links"><a href="/">&larr; Home</a></div>
     </div>
     <button class="analyze-btn" id="analyze-all-btn" onclick="analyzeAll()">
       <span class="spinner"></span>
@@ -179,22 +195,31 @@
   <p>The driver's dashcam captures a street view. The AI reads the customer's delivery note and annotates the image in real-time, highlighting exactly where to deliver the parcel.</p>
 </div>
 
-<div class="prompt-section">
-  <h3>Gemini Image Prompt (delivery note is injected per scenario)</h3>
-  <textarea class="prompt-box" id="prompt-editor" rows="12">You are an AR delivery assistant AI. A DPD delivery driver needs to find the exact delivery location in this street-level image.
+<div class="prompt-section collapsed" id="prompt-section">
+  <div class="prompt-toggle" onclick="document.getElementById('prompt-section').classList.toggle('collapsed')">
+    <h3>Gemini Image Prompt (delivery note is injected per scenario)</h3>
+    <span class="chevron">&#9660;</span>
+  </div>
+  <div class="prompt-inner">
+  <textarea class="prompt-box" id="prompt-editor" rows="16">You are a professional AR heads-up display system for DPD delivery drivers. Analyze this street-level image and the customer delivery note, then return an annotated version of the image.
 
-The customer left the following delivery note:
+Customer delivery note:
 "{DELIVERY_NOTE}"
 
-IMPORTANT: You MUST edit and return the input image with clear visual annotations drawn on top of it. Do not return text only — return the modified image.
+IMPORTANT: You MUST edit and return the input image with professional HUD-style annotations overlaid. Do not return text only — return the modified image.
 
-Annotations to draw on the image:
-- A large, bold arrow (bright green or red) pointing to the exact delivery location (the door, gate, or entrance)
-- A circle or rectangle highlighting the delivery target
-- A text label "DELIVER HERE" placed near the target
-- If the note mentions an alternative (e.g. neighbor, porch), draw a second smaller arrow labeled "ALTERNATIVE" pointing there
+Annotation style guide (enterprise HUD aesthetic):
+- Use a semi-transparent dark panel/banner at the top or bottom of the image showing: delivery target summary (1 line), confidence level (High/Medium)
+- Draw a clean rectangular bracket or rounded-corner outline (2-3px, solid white or cyan #00E5FF) around the primary delivery target (door, entrance, building)
+- Place a small, clean label near the bracket: "PRIMARY DROP-OFF" in a semi-transparent dark pill/badge with white text
+- If an alternative location is mentioned, outline it with a dashed rectangle (amber/orange #FFB300) and label it "ALTERNATIVE" in the same badge style
+- Connect labels to targets with thin clean leader lines if needed
+- Do NOT use thick neon arrows, hand-drawn circles, or cartoon-style markers
+- Keep the overall look minimal, precise, and similar to a navigation or warehouse management HUD
+- Use at most 3 colors: white, cyan (#00E5FF) for primary, amber (#FFB300) for alternative
 
-Use thick lines and bright neon colors (green, red, yellow) so annotations are impossible to miss. Return the annotated image.</textarea>
+Return only the annotated image.</textarea>
+  </div>
 </div>
 
 <div class="lightbox" id="lightbox" onclick="closeLightbox()">
@@ -292,6 +317,10 @@ function renderGeminiResults(imageId, modelResult, containerId) {
     html += `<img class="annotated-img" src="data:${mime};base64,${modelResult.annotated_image}" alt="AI Annotated" onclick="openLightboxSrc(this.src)">`;
   }
 
+  if (modelResult.text && modelResult.text.trim() && modelResult.text !== '(image only)') {
+    html += `<div class="ai-analysis"><div class="ai-analysis-label">AI Analysis</div>${modelResult.text.replace(/\n/g, '<br>')}</div>`;
+  }
+
   if (!html) {
     html = '<div class="no-results">No output generated</div>';
   }
@@ -306,7 +335,7 @@ function getPromptForCard(card) {
 
 async function analyzeImage(imageId) {
   document.getElementById(`gemini-results-${imageId}`).innerHTML =
-    `<div class="result-placeholder" style="border-color:#d2a8ff40;"><div class="ph-icon" style="animation:spin 1.5s linear infinite;">&#10024;</div><div style="color:#d2a8ff;">Generating AR overlay...</div></div>`;
+    `<div class="result-placeholder" style="border-color:#00e5ff30;"><div class="ph-icon" style="animation:spin 1.5s linear infinite;">&#10024;</div><div style="color:#00e5ff;">Generating HUD overlay...</div></div>`;
 
   const card = imageCards.find(c => c.id === imageId);
   const prompt = getPromptForCard(card);

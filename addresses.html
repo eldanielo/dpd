@@ -6,34 +6,75 @@
   <title>Addresses - Geopost Street AI Companion</title>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
-    body { font-family: 'Segoe UI', system-ui, sans-serif; background: #0f1117; color: #e1e4e8; }
+    body { font-family: 'Segoe UI', system-ui, sans-serif; background: #0a0c10; color: #e1e4e8; }
 
-    header { background: #161b22; border-bottom: 1px solid #30363d; padding: 20px 40px; }
-    header h1 { font-size: 22px; font-weight: 600; }
+    header {
+      background: linear-gradient(135deg, #0d1117 0%, #161b22 100%);
+      border-bottom: 1px solid #30363d; padding: 28px 40px;
+    }
+    header h1 { font-size: 24px; font-weight: 600; letter-spacing: -0.3px; }
     header p { color: #8b949e; margin-top: 4px; font-size: 14px; }
 
     .nav-links { margin-top: 8px; }
     .nav-links a { color: #58a6ff; font-size: 13px; text-decoration: none; }
     .nav-links a:hover { text-decoration: underline; }
 
-    .prompt-section { background: #161b22; border: 1px solid #30363d; border-radius: 8px; margin: 24px 40px 0; padding: 20px; }
-    .prompt-section h3 { font-size: 13px; text-transform: uppercase; letter-spacing: 0.5px; color: #8b949e; margin-bottom: 10px; }
-    .prompt-box { background: #0d1117; border: 1px solid #30363d; border-radius: 6px; padding: 14px 16px; font-family: 'SF Mono', 'Fira Code', monospace; font-size: 13px; line-height: 1.6; color: #c9d1d9; white-space: pre-wrap; width: 100%; resize: vertical; }
-    .prompt-box:focus { outline: none; border-color: #58a6ff; }
+    .hero {
+      background: linear-gradient(135deg, #1a1040 0%, #0d1117 50%, #0a1628 100%);
+      border-bottom: 1px solid #30363d;
+      padding: 40px 40px 36px;
+      text-align: center;
+    }
+    .hero-badge {
+      display: inline-block; font-size: 11px; text-transform: uppercase; letter-spacing: 1.5px;
+      color: #d2a8ff; background: #d2a8ff15; border: 1px solid #d2a8ff30;
+      padding: 4px 14px; border-radius: 20px; font-weight: 600; margin-bottom: 16px;
+    }
+    .hero h2 {
+      font-size: 28px; font-weight: 700; letter-spacing: -0.5px;
+      background: linear-gradient(135deg, #e1e4e8 0%, #d2a8ff 50%, #58a6ff 100%);
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+      background-clip: text; margin-bottom: 10px;
+    }
+    .hero p { color: #8b949e; font-size: 15px; max-width: 640px; margin: 0 auto; line-height: 1.6; }
 
-    .cards-container { padding: 24px 40px; display: flex; flex-direction: column; gap: 32px; }
+    .prompt-section { background: #161b22; border: 1px solid #30363d; border-radius: 10px; margin: 24px 40px 0; padding: 0; }
+    .prompt-toggle {
+      display: flex; align-items: center; justify-content: space-between; padding: 16px 20px;
+      cursor: pointer; user-select: none;
+    }
+    .prompt-toggle h3 { font-size: 12px; text-transform: uppercase; letter-spacing: 1px; color: #8b949e; font-weight: 600; margin: 0; }
+    .prompt-toggle .chevron { color: #8b949e; font-size: 14px; transition: transform 0.2s; }
+    .prompt-section.collapsed .chevron { transform: rotate(-90deg); }
+    .prompt-section.collapsed .prompt-inner { display: none; }
+    .prompt-inner { padding: 0 20px 20px; }
+    .prompt-box { background: #0d1117; border: 1px solid #30363d; border-radius: 8px; padding: 14px 16px; font-family: 'SF Mono', 'Fira Code', monospace; font-size: 13px; line-height: 1.6; color: #c9d1d9; white-space: pre-wrap; width: 100%; resize: vertical; }
+    .prompt-box:focus { outline: none; border-color: #d2a8ff; box-shadow: 0 0 0 3px #d2a8ff20; }
 
-    .image-card { background: #161b22; border: 1px solid #30363d; border-radius: 10px; overflow: hidden; }
-    .image-card-header { padding: 16px 20px; border-bottom: 1px solid #30363d; display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
-    .image-card-header h2 { font-size: 16px; font-weight: 600; margin-right: auto; }
+    .cards-container { padding: 24px 40px 48px; display: flex; flex-direction: column; gap: 36px; }
+
+    .image-card {
+      background: #161b22; border: 1px solid #30363d; border-radius: 12px;
+      overflow: hidden; transition: border-color 0.2s, box-shadow 0.2s;
+    }
+    .image-card:hover { border-color: #d2a8ff40; box-shadow: 0 4px 24px #d2a8ff08; }
+
+    .image-card-header {
+      padding: 18px 24px; border-bottom: 1px solid #30363d;
+      display: flex; align-items: center; gap: 14px; flex-wrap: wrap;
+      background: linear-gradient(90deg, #161b22 0%, #1a1030 100%);
+    }
+    .image-card-header h2 { font-size: 17px; font-weight: 600; margin-right: auto; letter-spacing: -0.2px; }
 
     .analyze-btn {
-      background: #238636; color: #fff; border: 1px solid #2ea04366; border-radius: 6px;
-      padding: 6px 16px; font-size: 13px; font-weight: 600; cursor: pointer;
-      display: inline-flex; align-items: center; gap: 6px; transition: background 0.15s;
+      background: linear-gradient(135deg, #7c3aed 0%, #a855f7 100%);
+      color: #fff; border: 1px solid #a855f766; border-radius: 8px;
+      padding: 8px 20px; font-size: 13px; font-weight: 600; cursor: pointer;
+      display: inline-flex; align-items: center; gap: 8px;
+      transition: all 0.2s; box-shadow: 0 2px 8px #7c3aed30;
     }
-    .analyze-btn:hover { background: #2ea043; }
-    .analyze-btn:disabled { background: #21262d; color: #484f58; border-color: #30363d; cursor: not-allowed; }
+    .analyze-btn:hover { background: linear-gradient(135deg, #6d28d9 0%, #9333ea 100%); box-shadow: 0 4px 16px #7c3aed40; transform: translateY(-1px); }
+    .analyze-btn:disabled { background: #21262d; color: #484f58; border-color: #30363d; cursor: not-allowed; box-shadow: none; transform: none; }
     .analyze-btn .spinner {
       width: 14px; height: 14px; border: 2px solid #ffffff44; border-top-color: #fff;
       border-radius: 50%; animation: spin 0.6s linear infinite; display: none;
@@ -41,12 +82,13 @@
     .analyze-btn.loading .spinner { display: inline-block; }
     @keyframes spin { to { transform: rotate(360deg); } }
 
-    .image-preview { padding: 16px; border-bottom: 1px solid #30363d; }
-    .image-preview img { width: 100%; max-width: 640px; border-radius: 6px; border: 1px solid #30363d; display: block; }
+    .card-layout { display: grid; grid-template-columns: 2fr 3fr; }
+    .card-layout > .image-side { padding: 16px; border-right: 1px solid #30363d; }
+    .card-layout > .results-side { display: flex; flex-direction: column; }
+    .results-side > div { padding: 16px; }
+    .results-side > div:first-child { border-bottom: 1px solid #30363d; }
 
-    .two-col { display: grid; grid-template-columns: 1fr 1fr; }
-    .two-col > div { padding: 16px; border-right: 1px solid #30363d; }
-    .two-col > div:last-child { border-right: none; }
+    .image-preview img { width: 100%; border-radius: 6px; border: 1px solid #30363d; display: block; }
 
     .col-header {
       font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px; color: #8b949e;
@@ -81,9 +123,8 @@
     .lightbox-close { position: fixed; top: 20px; right: 30px; color: #fff; font-size: 32px; cursor: pointer; z-index: 1001; }
 
     @media (max-width: 900px) {
-      .two-col { grid-template-columns: 1fr; }
-      .two-col > div { border-right: none; border-bottom: 1px solid #30363d; }
-      .two-col > div:last-child { border-bottom: none; }
+      .card-layout { grid-template-columns: 1fr; }
+      .card-layout > .image-side { border-right: none; border-bottom: 1px solid #30363d; }
     }
   </style>
 </head>
@@ -93,8 +134,7 @@
   <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;">
     <div>
       <h1>Geopost Street AI Companion <span style="font-weight:400;color:#8b949e;">/ Addresses</span></h1>
-      <p>Gemma 3n E4B-IT | Gemini 3.1 Pro &mdash; European Address Reading | Geopost Street AI Companion</p>
-      <div class="nav-links"><a href="/">&larr; Home</a> &nbsp;|&nbsp; <a href="/road-damage">Road Damage</a> &nbsp;|&nbsp; <a href="/shop-hours">Shop Hours</a> &nbsp;|&nbsp; <a href="/parking">Parking</a> &nbsp;|&nbsp; <strong>Addresses</strong> &nbsp;|&nbsp; <a href="/traffic">Construction</a> &nbsp;|&nbsp; <a href="/delivery">AR Delivery</a> &nbsp;|&nbsp; <a href="/crash">Crash</a></div>
+      <div class="nav-links"><a href="/">&larr; Home</a></div>
     </div>
     <button class="analyze-btn" id="analyze-all-btn" onclick="analyzeAll()">
       <span class="spinner"></span>
@@ -104,8 +144,18 @@
   <div id="analyze-progress" style="margin-top:8px;font-size:13px;color:#8b949e;display:none;"></div>
 </header>
 
-<div class="prompt-section">
-  <h3>Prompt (same for all models)</h3>
+<div class="hero">
+  <div class="hero-badge">Powered by Gemini Vision</div>
+  <h2>Address & House Number Reading</h2>
+  <p>AI detects and reads house numbers, building names, and address plaques from street-level images, helping drivers locate the right building quickly.</p>
+</div>
+
+<div class="prompt-section collapsed" id="prompt-section">
+  <div class="prompt-toggle" onclick="document.getElementById('prompt-section').classList.toggle('collapsed')">
+    <h3>Prompt (same for all models)</h3>
+    <span class="chevron">&#9660;</span>
+  </div>
+  <div class="prompt-inner">
   <textarea class="prompt-box" id="prompt-editor" rows="10">You are an address detection AI analyzing street-level images of European residential streets. Identify all house numbers, building names, and address markers visible in the image.
 
 For each address found, provide:
@@ -114,6 +164,7 @@ For each address found, provide:
 - visibility: how clearly readable the number/name is ("clear", "partial", "obscured")
 
 Return ONLY a JSON object with an "addresses" array. Each element must include number, type, and visibility.</textarea>
+  </div>
 </div>
 
 <div class="lightbox" id="lightbox" onclick="closeLightbox()">
@@ -144,25 +195,29 @@ function buildCard(card) {
         <span>Analyze</span>
       </button>
     </div>
-    <div class="image-preview">
-      <img src="${imgSrc}" alt="${card.location}" onclick="openLightbox('${card.id}')">
-    </div>
-    <div class="two-col">
-      <div>
-        <div class="col-header"><span class="dot dot-gemma"></span> Gemma 3n E4B-IT</div>
-        <div id="gemma-results-${card.id}">
-          <div class="detection-summary" style="opacity:0.5;">
-            <h4>Detected Addresses</h4>
-            <div class="no-results">Click "Analyze" to run</div>
-          </div>
+    <div class="card-layout">
+      <div class="image-side">
+        <div class="image-preview">
+          <img src="${imgSrc}" alt="${card.location}" onclick="openLightbox('${card.id}')">
         </div>
       </div>
-      <div>
-        <div class="col-header"><span class="dot dot-gemini"></span> Gemini 3.1 Pro</div>
-        <div id="gemini-results-${card.id}">
-          <div class="detection-summary" style="opacity:0.5;">
-            <h4>Detected Addresses</h4>
-            <div class="no-results">Click "Analyze" to run</div>
+      <div class="results-side">
+        <div>
+          <div class="col-header"><span class="dot dot-gemma"></span> Gemma 3n E4B-IT</div>
+          <div id="gemma-results-${card.id}">
+            <div class="detection-summary" style="opacity:0.5;">
+              <h4>Detected Addresses</h4>
+              <div class="no-results">Click "Analyze" to run</div>
+            </div>
+          </div>
+        </div>
+        <div>
+          <div class="col-header"><span class="dot dot-gemini"></span> Gemini 3.1 Pro</div>
+          <div id="gemini-results-${card.id}">
+            <div class="detection-summary" style="opacity:0.5;">
+              <h4>Detected Addresses</h4>
+              <div class="no-results">Click "Analyze" to run</div>
+            </div>
           </div>
         </div>
       </div>
