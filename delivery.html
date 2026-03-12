@@ -8,16 +8,11 @@
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body { font-family: 'Segoe UI', system-ui, sans-serif; background: #0a0c10; color: #e1e4e8; }
 
-    header {
-      background: linear-gradient(135deg, #0d1117 0%, #161b22 100%);
-      border-bottom: 1px solid #30363d; padding: 28px 40px;
+    .home-link {
+      position: absolute; top: 20px; left: 24px;
+      color: #58a6ff; font-size: 13px; text-decoration: none; font-weight: 500;
     }
-    header h1 { font-size: 24px; font-weight: 600; letter-spacing: -0.3px; }
-    header p { color: #8b949e; margin-top: 4px; font-size: 14px; }
-
-    .nav-links { margin-top: 8px; }
-    .nav-links a { color: #58a6ff; font-size: 13px; text-decoration: none; }
-    .nav-links a:hover { text-decoration: underline; }
+    .home-link:hover { text-decoration: underline; }
 
     /* Hero section */
     .hero {
@@ -25,6 +20,7 @@
       border-bottom: 1px solid #30363d;
       padding: 40px 40px 36px;
       text-align: center;
+      position: relative;
     }
     .hero-badge {
       display: inline-block; font-size: 11px; text-transform: uppercase; letter-spacing: 1.5px;
@@ -175,24 +171,18 @@
 </head>
 <body>
 
-<header>
-  <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;">
-    <div>
-      <h1>Geopost Street AI Companion <span style="font-weight:400;color:#8b949e;">/ AR Delivery</span></h1>
-      <div class="nav-links"><a href="/">&larr; Home</a></div>
-    </div>
+<div class="hero">
+  <a href="/" class="home-link">&larr; Home</a>
+  <div class="hero-badge">Powered by Gemini Vision</div>
+  <h2>AI-Guided Delivery Navigation</h2>
+  <p>The driver's dashcam captures a street view. The AI reads the customer's delivery note and annotates the image in real-time, highlighting exactly where to deliver the parcel.</p>
+  <div style="margin-top:20px;">
     <button class="analyze-btn" id="analyze-all-btn" onclick="analyzeAll()">
       <span class="spinner"></span>
       <span>Analyze All Scenarios</span>
     </button>
   </div>
-  <div id="analyze-progress" style="margin-top:8px;font-size:13px;color:#8b949e;display:none;"></div>
-</header>
-
-<div class="hero">
-  <div class="hero-badge">Powered by Gemini Vision</div>
-  <h2>AI-Guided Delivery Navigation</h2>
-  <p>The driver's dashcam captures a street view. The AI reads the customer's delivery note and annotates the image in real-time, highlighting exactly where to deliver the parcel.</p>
+  <div id="analyze-progress" style="margin-top:10px;font-size:13px;color:#8b949e;display:none;"></div>
 </div>
 
 <div class="prompt-section collapsed" id="prompt-section">
