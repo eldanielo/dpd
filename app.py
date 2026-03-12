@@ -3,6 +3,9 @@ import os
 import re
 import struct
 import base64
+import time
+import threading
+from collections import defaultdict
 from concurrent.futures import ThreadPoolExecutor
 
 import google.auth
@@ -11,6 +14,50 @@ import requests as http_requests
 from flask import Flask, request, jsonify, send_from_directory
 
 app = Flask(__name__, static_folder=".", static_url_path="")
+
+# ── Rate Limiting ──────────────────────────────────────
+# 10 analyze requests per minute per IP, 60 per hour
+RATE_LIMIT_PER_MIN = 10
+RATE_LIMIT_PER_HOUR = 60
+
+_rate_lock = threading.Lock()
+_rate_store = defaultdict(list)  # ip -> list of timestamps
+
+
+def _cleanup_old(ip, now):
+    """Remove timestamps older than 1 hour."""
+    _rate_store[ip] = [t for t in _rate_store[ip] if now - t < 3600]
+
+
+def _check_rate_limit():
+    """Returns (allowed, retry_after_seconds). Only applies to /analyze* routes."""
+    ip = request.headers.get("X-Forwarded-For", request.remote_addr)
+    if ip:
+        ip = ip.split(",")[0].strip()
+    now = time.time()
+    with _rate_lock:
+        _cleanup_old(ip, now)
+        timestamps = _rate_store[ip]
+        last_min = [t for t in timestamps if now - t < 60]
+        if len(last_min) >= RATE_LIMIT_PER_MIN:
+            retry = int(60 - (now - last_min[0])) + 1
+            return False, retry
+        if len(timestamps) >= RATE_LIMIT_PER_HOUR:
+            retry = int(3600 - (now - timestamps[0])) + 1
+            return False, retry
+        timestamps.append(now)
+        return True, 0
+
+
+@app.before_request
+def rate_limit_check():
+    if request.path.startswith("/analyze") and request.method == "POST":
+        allowed, retry_after = _check_rate_limit()
+        if not allowed:
+            return jsonify({
+                "error": f"Rate limit exceeded. Try again in {retry_after}s.",
+                "retry_after": retry_after
+            }), 429
 
 PROJECT = "mineral-concord-394714"
 GEMMA_ENDPOINT = (
