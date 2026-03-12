@@ -176,13 +176,13 @@
   <div class="hero-badge">Powered by Gemini Vision</div>
   <h2>AI-Guided Delivery Navigation</h2>
   <p>The driver's dashcam captures a street view. The AI reads the customer's delivery note and annotates the image in real-time, highlighting exactly where to deliver the parcel.</p>
-  <div style="margin-top:20px;">
+  <div style="position:absolute;top:20px;right:24px;text-align:right;">
     <button class="analyze-btn" id="analyze-all-btn" onclick="analyzeAll()">
       <span class="spinner"></span>
       <span>Analyze All Scenarios</span>
     </button>
+    <div id="analyze-progress" style="margin-top:6px;font-size:13px;color:#8b949e;display:none;"></div>
   </div>
-  <div id="analyze-progress" style="margin-top:10px;font-size:13px;color:#8b949e;display:none;"></div>
 </div>
 
 <div class="prompt-section collapsed" id="prompt-section">
@@ -307,9 +307,6 @@ function renderGeminiResults(imageId, modelResult, containerId) {
     html += `<img class="annotated-img" src="data:${mime};base64,${modelResult.annotated_image}" alt="AI Annotated" onclick="openLightboxSrc(this.src)">`;
   }
 
-  if (modelResult.text && modelResult.text.trim() && modelResult.text !== '(image only)') {
-    html += `<div class="ai-analysis"><div class="ai-analysis-label">AI Analysis</div>${modelResult.text.replace(/\n/g, '<br>')}</div>`;
-  }
 
   if (!html) {
     html = '<div class="no-results">No output generated</div>';

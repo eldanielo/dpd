@@ -131,13 +131,13 @@
   <div class="hero-badge">Powered by Gemini Vision</div>
   <h2>Address & House Number Reading</h2>
   <p>AI detects and reads house numbers, building names, and address plaques from street-level images, helping drivers locate the right building quickly.</p>
-  <div style="margin-top:20px;">
+  <div style="position:absolute;top:20px;right:24px;text-align:right;">
     <button class="analyze-btn" id="analyze-all-btn" onclick="analyzeAll()">
       <span class="spinner"></span>
       <span>Analyze All Images</span>
     </button>
+    <div id="analyze-progress" style="margin-top:6px;font-size:13px;color:#8b949e;display:none;"></div>
   </div>
-  <div id="analyze-progress" style="margin-top:10px;font-size:13px;color:#8b949e;display:none;"></div>
 </div>
 
 <div class="prompt-section collapsed" id="prompt-section">

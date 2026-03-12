@@ -177,13 +177,13 @@
   <div class="hero-badge">Powered by Gemini Vision</div>
   <h2>Road Damage Detection</h2>
   <p>AI compares four models against RDD2022 ground truth to detect cracks, potholes, and surface damage from dashcam imagery, scoring each model's accuracy.</p>
-  <div style="margin-top:20px;">
+  <div style="position:absolute;top:20px;right:24px;text-align:right;">
     <button class="analyze-btn" id="analyze-all-btn" onclick="analyzeAll()">
       <span class="spinner"></span>
       <span>Analyze All Images</span>
     </button>
+    <div id="analyze-progress" style="margin-top:6px;font-size:13px;color:#8b949e;display:none;"></div>
   </div>
-  <div id="analyze-progress" style="margin-top:10px;font-size:13px;color:#8b949e;display:none;"></div>
 </div>
 
 <div class="prompt-section collapsed" id="prompt-section">
