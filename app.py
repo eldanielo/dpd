@@ -1308,6 +1308,250 @@ FAKE_ROAD_DAMAGE = {
     },
 }
 
+FAKE_HOURS = {
+    "lisbon_cais_sodre": {
+        "gemma": {"status": "ok", "result": {"shops": [
+            {"shop_name": "Guacamole", "opening_hours": "Not visible", "status": "unknown"},
+            {"shop_name": "Guacamole", "opening_hours": "Not visible", "status": "unknown"},
+        ]}, "raw": "```json\n{\n  \"shops\": [\n    {\n      \"shop_name\": \"Guacamole\",\n      \"opening_hours\": \"Not visible\",\n      \"status\": \"unknown\"\n    },\n    {\n      \"shop_name\": \"Guacamole\",\n      \"opening_hours\": \"Not visible\",\n      \"status\": \"unknown\"\n    }\n  ]\n}\n```"},
+        "gemini": {"status": "ok", "result": {"shops": [
+            {"shop_name": "GUACAMOLE", "opening_hours": "Not visible", "status": "open"},
+        ]}, "raw": "{\n  \"shops\": [\n    {\n      \"shop_name\": \"GUACAMOLE\",\n      \"opening_hours\": \"Not visible\",\n      \"status\": \"open\"\n    }\n  ]\n}"},
+    },
+    "munich_viktualienmarkt": {
+        "gemma": {"status": "ok", "result": {"shops": [
+            {"shop_name": "Tretter's", "opening_hours": "Not visible", "status": "open"},
+        ]}, "raw": "```json\n{\n  \"shops\": [\n    {\n      \"shop_name\": \"Tretter's\",\n      \"opening_hours\": \"Not visible\",\n      \"status\": \"open\"\n    }\n  ]\n}\n```"},
+        "gemini": {"status": "ok", "result": {"shops": [
+            {"shop_name": "TRETTER'S", "opening_hours": "Not visible", "status": "open"},
+        ]}, "raw": "{\n  \"shops\": [\n    {\n      \"shop_name\": \"TRETTER'S\",\n      \"opening_hours\": \"Not visible\",\n      \"status\": \"open\"\n    }\n  ]\n}"},
+    },
+    "amsterdam_9streets": {
+        "gemma": {"status": "ok", "result": {"shops": [
+            {"shop_name": "N\u00d8MADBO", "opening_hours": "Not visible", "status": "unknown"},
+        ]}, "raw": "```json\n{\n  \"shops\": [\n    {\n      \"shop_name\": \"N\u00d8MADBO\",\n      \"opening_hours\": \"Not visible\",\n      \"status\": \"unknown\"\n    }\n  ]\n}\n```"},
+        "gemini": {"status": "ok", "result": {"shops": [
+            {"shop_name": "NO TABOO", "opening_hours": "Not visible", "status": "closed"},
+        ]}, "raw": "{\n  \"shops\": [\n    {\n      \"shop_name\": \"NO TABOO\",\n      \"opening_hours\": \"Not visible\",\n      \"status\": \"closed\"\n    }\n  ]\n}"},
+    },
+    "paris_rue_des_canettes": {
+        "gemma": {"status": "ok", "result": {"shops": [
+            {"shop_name": "LA CREDE RIT DU CLOUN", "opening_hours": "Not visible", "status": "open"},
+            {"shop_name": "L'Heure St Germain", "opening_hours": "Not visible", "status": "open"},
+            {"shop_name": "MORFES", "opening_hours": "Not visible", "status": "unknown"},
+        ]}, "raw": "```json\n{\n  \"shops\": [\n    {\n      \"shop_name\": \"LA CREDE RIT DU CLOUN\",\n      \"opening_hours\": \"Not visible\",\n      \"status\": \"open\"\n    },\n    {\n      \"shop_name\": \"L'Heure St Germain\",\n      \"opening_hours\": \"Not visible\",\n      \"status\": \"open\"\n    },\n    {\n      \"shop_name\": \"MORFES\",\n      \"opening_hours\": \"Not visible\",\n      \"status\": \"unknown\"\n    }\n  ]\n}\n```"},
+        "gemini": {"status": "ok", "result": {"shops": [
+            {"shop_name": "LA CREPE RIT DU CLOWN", "opening_hours": "Not visible", "status": "open"},
+            {"shop_name": "NOVA FITNESS", "opening_hours": "Not visible", "status": "closed"},
+            {"shop_name": "L'heure St Germain", "opening_hours": "Not visible", "status": "open"},
+        ]}, "raw": "{\n  \"shops\": [\n    {\n      \"shop_name\": \"LA CREPE RIT DU CLOWN\",\n      \"opening_hours\": \"Not visible\",\n      \"status\": \"open\"\n    },\n    {\n      \"shop_name\": \"NOVA FITNESS\",\n      \"opening_hours\": \"Not visible\",\n      \"status\": \"closed\"\n    },\n    {\n      \"shop_name\": \"L'heure St Germain\",\n      \"opening_hours\": \"Not visible\",\n      \"status\": \"open\"\n    }\n  ]\n}"},
+    },
+}
+
+FAKE_PARKING = {
+    "berlin_loading_zone": {
+        "gemma": {"status": "ok", "result": {"features": [
+            {"type": "loading_zone", "description": "Blue and white sign indicating a loading zone with a prohibited entry symbol and text 'LADE-BEREICH' (loading zone).", "suitability": "yes"},
+            {"type": "time_limited_parking", "description": "White and black sign indicating a time-limited loading zone, valid Monday-Friday from 7:00 to 18:00.", "suitability": "yes"},
+        ]}, "raw": "```json\n{\"features\":[{\"type\":\"loading_zone\",\"description\":\"Blue and white sign indicating a loading zone with a prohibited entry symbol and text 'LADE-BEREICH' (loading zone).\",\"suitability\":\"yes\"},{\"type\":\"time_limited_parking\",\"description\":\"White and black sign indicating a time-limited loading zone, valid Monday-Friday from 7:00 to 18:00.\",\"suitability\":\"yes\"}]}\n```"},
+        "gemini": {"status": "ok", "result": {"features": [
+            {"type": "loading_zone", "description": "A blue sign with a red circle and cross, indicating a loading zone ('LADE-BEREICH'). Below it, a white sign specifies the hours 'Mo-Fr 7-18 h' and shows a pictogram of a person with a hand truck.", "suitability": "yes"},
+        ]}, "raw": "{\n  \"features\": [\n    {\n      \"type\": \"loading_zone\",\n      \"description\": \"A blue sign with a red circle and cross, indicating a loading zone ('LADE-BEREICH'). Below it, a white sign specifies the hours 'Mo-Fr 7-18 h' and shows a pictogram of a person with a hand truck.\",\n      \"suitability\": \"yes\"\n    }\n  ]\n}"},
+    },
+    "france_no_parking_sauf_taxis": {
+        "gemma": {"status": "ok", "result": {"features": [
+            {"type": "no_parking_sign", "description": "A red and blue circular sign with a diagonal red line through a symbol of a car, indicating no parking.", "suitability": "no"},
+            {"type": "loading_zone", "description": "A sign that says 'SAUF TAXIS' (Except Taxis) with a symbol of a car and a taxi. This suggests a loading zone, but taxis are exempt.", "suitability": "maybe"},
+            {"type": "restricted_parking", "description": "The 'SAUF TAXIS' sign implies restricted parking for other vehicles.", "suitability": "no"},
+            {"type": "parking_meter", "description": "A red parking meter is visible on the right side of the image.", "suitability": "maybe"},
+            {"type": "available_spot", "description": "The image shows a street with brick paving, and there are no visible markings indicating parking restrictions on the road itself. There are also no parked vehicles immediately visible.", "suitability": "maybe"},
+        ]}, "raw": "```json\n{\"features\":[{\"type\":\"no_parking_sign\",\"suitability\":\"no\"},{\"type\":\"loading_zone\",\"suitability\":\"maybe\"},{\"type\":\"restricted_parking\",\"suitability\":\"no\"},{\"type\":\"parking_meter\",\"suitability\":\"maybe\"},{\"type\":\"available_spot\",\"suitability\":\"maybe\"}]}\n```"},
+        "gemini": {"status": "ok", "result": {"features": [
+            {"type": "no_parking_sign", "description": "A circular sign with a red border and a blue center crossed by a red diagonal line, indicating no parking.", "suitability": "no"},
+            {"type": "restricted_parking", "description": "A rectangular sign below the no parking sign with the text 'SAUF TAXIS', indicating parking is restricted to taxis only.", "suitability": "no"},
+            {"type": "tow_away_zone", "description": "A rectangular sign below the 'SAUF TAXIS' sign showing a car being towed, indicating a tow-away zone for unauthorized vehicles.", "suitability": "no"},
+            {"type": "parking_meter", "description": "A tall, red parking meter or ticket machine located on the right side of the image.", "suitability": "maybe"},
+        ]}, "raw": "{\n  \"features\": [\n    {\"type\": \"no_parking_sign\", \"suitability\": \"no\"},\n    {\"type\": \"restricted_parking\", \"suitability\": \"no\"},\n    {\"type\": \"tow_away_zone\", \"suitability\": \"no\"},\n    {\"type\": \"parking_meter\", \"suitability\": \"maybe\"}\n  ]\n}"},
+    },
+    "winschoten_parking_rules": {
+        "gemma": {"status": "ok", "result": {"features": [
+            {"type": "time_limited_parking", "description": "A parking sign indicating time-limited parking between 07:00 and 18:00.", "suitability": "maybe"},
+            {"type": "time_limited_parking", "description": "A parking sign indicating time-limited parking between 18:00 and 07:00.", "suitability": "maybe"},
+            {"type": "parking_sign", "description": "Blue and white parking sign with 'P' symbol and icons for a truck and a car, indicating parking is allowed during specified hours.", "suitability": "maybe"},
+        ]}, "raw": "```json\n{\"features\":[{\"type\":\"time_limited_parking\",\"suitability\":\"maybe\"},{\"type\":\"time_limited_parking\",\"suitability\":\"maybe\"},{\"type\":\"parking_sign\",\"suitability\":\"maybe\"}]}\n```"},
+        "gemini": {"status": "ok", "result": {"features": [
+            {"type": "loading_zone", "description": "A blue parking sign with a white 'P' and a symbol of a truck being loaded/unloaded. Text next to it says 'tussen 07.00 en 18.00 h'.", "suitability": "yes"},
+            {"type": "restricted_parking", "description": "A blue parking sign with a white 'P' and a symbol of a car. Text next to it says 'tussen 18.00 en 07.00 h'.", "suitability": "no"},
+        ]}, "raw": "{\n  \"features\": [\n    {\"type\": \"loading_zone\", \"suitability\": \"yes\"},\n    {\"type\": \"restricted_parking\", \"suitability\": \"no\"}\n  ]\n}"},
+    },
+    "berlin_schoeneberger": {
+        "gemma": {"status": "ok", "result": {"features": [
+            {"type": "no_parking_sign", "description": "A blue and yellow sign with a red circle and a diagonal line through a 'Z' symbol, indicating no stopping or parking.", "suitability": "no"},
+            {"type": "restricted_parking", "description": "The 'no parking' sign suggests restricted parking in the area.", "suitability": "no"},
+            {"type": "loading_zone", "description": "Construction barriers and orange and white striped delineators are present on the road, potentially indicating a temporary loading zone or restricted access for vehicles.", "suitability": "maybe"},
+        ]}, "raw": "```json\n{\"features\":[{\"type\":\"no_parking_sign\",\"suitability\":\"no\"},{\"type\":\"restricted_parking\",\"suitability\":\"no\"},{\"type\":\"loading_zone\",\"suitability\":\"maybe\"}]}\n```"},
+        "gemini": {"status": "ok", "result": {"features": [
+            {"type": "no_parking_sign", "description": "A round sign with a blue background and a red cross, indicating no stopping or parking.", "suitability": "no"},
+        ]}, "raw": "{\n  \"features\": [\n    {\"type\": \"no_parking_sign\", \"suitability\": \"no\"}\n  ]\n}"},
+    },
+    "italy_24h_ban": {
+        "gemma": {"status": "ok", "result": {"features": [
+            {"type": "no_parking_sign", "description": "Red and blue circle with a red diagonal line across it, indicating no parking.", "suitability": "no"},
+            {"type": "parking_sign", "description": "White sign with 'P' and an arrow pointing down, indicating parking is allowed in that direction.", "suitability": "maybe"},
+            {"type": "restricted_parking", "description": "White sign with 'O-2' and '0-2' indicating parking restrictions, possibly time limits or permit required.", "suitability": "no"},
+            {"type": "loading_zone", "description": "No specific loading zone sign is visible, but the presence of parking restrictions and the narrow street suggest potential loading restrictions.", "suitability": "no"},
+            {"type": "parking_meter", "description": "A black parking meter is visible on the sidewalk.", "suitability": "maybe"},
+        ]}, "raw": "```json\n{\"features\":[{\"type\":\"no_parking_sign\",\"suitability\":\"no\"},{\"type\":\"parking_sign\",\"suitability\":\"maybe\"},{\"type\":\"restricted_parking\",\"suitability\":\"no\"},{\"type\":\"loading_zone\",\"suitability\":\"no\"},{\"type\":\"parking_meter\",\"suitability\":\"maybe\"}]}\n```"},
+        "gemini": {"status": "ok", "result": {"features": [
+            {"type": "no_parking_sign", "description": "A circular sign with a red border and a blue center, indicating no parking.", "suitability": "no"},
+            {"type": "restricted_parking", "description": "A rectangular sign below the no parking sign, showing a tow truck symbol and the numbers '0-24', indicating a tow-away zone 24 hours a day.", "suitability": "no"},
+            {"type": "parking_sign", "description": "A blue square sign with a white 'P' and an arrow pointing to the right, indicating parking is available in that direction.", "suitability": "maybe"},
+        ]}, "raw": "{\n  \"features\": [\n    {\"type\": \"no_parking_sign\", \"suitability\": \"no\"},\n    {\"type\": \"restricted_parking\", \"suitability\": \"no\"},\n    {\"type\": \"parking_sign\", \"suitability\": \"maybe\"}\n  ]\n}"},
+    },
+    "netherlands_blue_disc": {
+        "gemma": {"status": "ok", "result": {"features": [
+            {"type": "available_spot", "description": "Marked parking spaces with white lines on a brick-paved surface.", "suitability": "yes"},
+            {"type": "parking_space", "description": "Individual parking spaces delineated by white lines.", "suitability": "yes"},
+            {"type": "parking_space", "description": "Multiple parking spaces arranged in a row.", "suitability": "yes"},
+            {"type": "no_parking_sign", "description": "White lines indicating no parking areas at the end of the parking spaces.", "suitability": "no"},
+            {"type": "restricted_parking", "description": "Blue painted curb indicating a restricted parking zone.", "suitability": "no"},
+        ]}, "raw": "```json\n{\"features\":[{\"type\":\"available_spot\",\"suitability\":\"yes\"},{\"type\":\"parking_space\",\"suitability\":\"yes\"},{\"type\":\"parking_space\",\"suitability\":\"yes\"},{\"type\":\"no_parking_sign\",\"suitability\":\"no\"},{\"type\":\"restricted_parking\",\"suitability\":\"no\"}]}\n```"},
+        "gemini": {"status": "ok", "result": {"features": [
+            {"type": "time_limited_parking", "description": "A parking spot marked with a blue line, indicating a blue zone where parking is time-limited and requires a parking disc.", "suitability": "maybe"},
+        ]}, "raw": "{\n  \"features\": [\n    {\"type\": \"time_limited_parking\", \"suitability\": \"maybe\"}\n  ]\n}"},
+    },
+    "fribourg_yellow_cross": {
+        "gemma": {"status": "ok", "result": {"features": [
+            {"type": "available_spot", "description": "Two cars are parked in designated parking spots along the street.", "suitability": "yes"},
+            {"type": "parking_meter", "description": "A parking meter is visible on the sidewalk.", "suitability": "maybe"},
+            {"type": "no_parking_sign", "description": "A 'P' with a circle around it (indicating no parking) is visible on a pole near the curb.", "suitability": "no"},
+            {"type": "time_limited_parking", "description": "The presence of a parking meter suggests time-limited parking.", "suitability": "maybe"},
+            {"type": "loading_zone", "description": "No loading zone is explicitly visible in this image.", "suitability": "no"},
+            {"type": "restricted_parking", "description": "The 'P' with a circle around it could indicate restricted parking.", "suitability": "no"},
+        ]}, "raw": "```json\n{\"features\":[{\"type\":\"available_spot\",\"suitability\":\"yes\"},{\"type\":\"parking_meter\",\"suitability\":\"maybe\"},{\"type\":\"no_parking_sign\",\"suitability\":\"no\"},{\"type\":\"time_limited_parking\",\"suitability\":\"maybe\"},{\"type\":\"loading_zone\",\"suitability\":\"no\"},{\"type\":\"restricted_parking\",\"suitability\":\"no\"}]}\n```"},
+        "gemini": {"status": "ok", "result": {"features": [
+            {"type": "parking_meter", "description": "A parking meter or ticket machine on the left side of the street.", "suitability": "no"},
+            {"type": "restricted_parking", "description": "A yellow cross-hatched area on the road, indicating no parking or stopping.", "suitability": "no"},
+            {"type": "available_spot", "description": "Marked parking bays on the right side of the street, currently occupied by two cars.", "suitability": "maybe"},
+        ]}, "raw": "{\n  \"features\": [\n    {\"type\": \"parking_meter\", \"suitability\": \"no\"},\n    {\"type\": \"restricted_parking\", \"suitability\": \"no\"},\n    {\"type\": \"available_spot\", \"suitability\": \"maybe\"}\n  ]\n}"},
+    },
+}
+
+FAKE_ADDRESSES = {
+    "paris_marais": {
+        "gemma": {"status": "ok", "result": {"addresses": [{"number": "9", "type": "house_number", "visibility": "clear"}]}, "raw": "```json\n{\"addresses\":[{\"number\":\"9\",\"type\":\"house_number\",\"visibility\":\"clear\"}]}\n```"},
+        "gemini": {"status": "ok", "result": {"addresses": [{"number": "9", "type": "house_number", "visibility": "clear"}]}, "raw": "{\"addresses\":[{\"number\":\"9\",\"type\":\"house_number\",\"visibility\":\"clear\"}]}"},
+    },
+    "london_kensington": {
+        "gemma": {"status": "ok", "result": {"addresses": [{"number": "27", "type": "house_number", "visibility": "clear"}]}, "raw": "```json\n{\"addresses\":[{\"number\":\"27\",\"type\":\"house_number\",\"visibility\":\"clear\"}]}\n```"},
+        "gemini": {"status": "ok", "result": {"addresses": [{"number": "27", "type": "house_number", "visibility": "clear"}]}, "raw": "{\"addresses\":[{\"number\":\"27\",\"type\":\"house_number\",\"visibility\":\"clear\"}]}"},
+    },
+    "berlin_prenzlauer": {
+        "gemma": {"status": "ok", "result": {"addresses": [{"number": "12", "type": "house_number", "visibility": "clear"}, {"number": "42", "type": "house_number", "visibility": "clear"}]}, "raw": "```json\n{\"addresses\":[{\"number\":\"12\",\"type\":\"house_number\",\"visibility\":\"clear\"},{\"number\":\"42\",\"type\":\"house_number\",\"visibility\":\"clear\"}]}\n```"},
+        "gemini": {"status": "ok", "result": {"addresses": [{"number": "12", "type": "house_number", "visibility": "clear"}]}, "raw": "{\"addresses\":[{\"number\":\"12\",\"type\":\"house_number\",\"visibility\":\"clear\"}]}"},
+    },
+    "amsterdam_jordaan": {
+        "gemma": {"status": "ok", "result": {"addresses": [{"number": "18", "type": "house_number", "visibility": "clear"}]}, "raw": "```json\n{\"addresses\":[{\"number\":\"18\",\"type\":\"house_number\",\"visibility\":\"clear\"}]}\n```"},
+        "gemini": {"status": "ok", "result": {"addresses": [{"number": "19", "type": "house_number", "visibility": "clear"}]}, "raw": "{\"addresses\":[{\"number\":\"19\",\"type\":\"house_number\",\"visibility\":\"clear\"}]}"},
+    },
+}
+
+FAKE_TRAFFIC = {
+    "mannheim_road_closed": {
+        "gemma": {"status": "ok", "result": {"assessment": {"passable": "with_caution", "recommended_action": "Proceed slowly and cautiously through the narrowed lane, observing any further instructions from workers or traffic signals. Be prepared to stop if necessary."}, "obstacles": [
+            {"type": "road_barrier", "description": "Red and white striped barriers blocking the right lane of the road.", "impact": "medium"},
+            {"type": "lane_narrowing", "description": "The presence of the road barriers effectively narrows the available lane for vehicles.", "impact": "medium"},
+            {"type": "construction_fencing", "description": "Orange and white construction fencing visible on the left side of the road, indicating ongoing work.", "impact": "low"},
+            {"type": "temporary_traffic_light", "description": "Orange flashing lights on top of the barriers, likely indicating a temporary traffic control measure.", "impact": "medium"},
+            {"type": "excavation", "description": "Implied by the construction fencing and barriers, there is likely some form of ground excavation or work happening.", "impact": "low"},
+        ]}, "raw": "```json\n{\"obstacles\":[{\"type\":\"road_barrier\",\"impact\":\"medium\"},{\"type\":\"lane_narrowing\",\"impact\":\"medium\"},{\"type\":\"construction_fencing\",\"impact\":\"low\"},{\"type\":\"temporary_traffic_light\",\"impact\":\"medium\"},{\"type\":\"excavation\",\"impact\":\"low\"}],\"assessment\":{\"passable\":\"with_caution\"}}\n```"},
+        "gemini": {"status": "ok", "result": {"assessment": {"passable": "with_caution", "recommended_action": "Verify if the delivery address is within the restricted zone. If yes, proceed with caution as deliveries ('Anlieger') are legally permitted to enter, but physical barriers will require careful navigation or use of alternate lanes. If the delivery is not in this zone, find an alternative route."}, "obstacles": [
+            {"type": "road_barrier", "description": "Red and white striped barrier with amber warning lights blocking the immediate lane.", "impact": "high"},
+            {"type": "road_closure", "description": "Traffic signs indicating roadworks and restricted access, prohibiting general traffic but allowing residents and deliveries ('Anlieger frei').", "impact": "medium"},
+        ]}, "raw": "{\n  \"obstacles\": [{\"type\":\"road_barrier\",\"impact\":\"high\"},{\"type\":\"road_closure\",\"impact\":\"medium\"}],\n  \"assessment\": {\"passable\":\"with_caution\"}\n}"},
+    },
+    "berlin_intersection_closure": {
+        "gemma": {"status": "ok", "result": {"assessment": {"passable": "with_caution", "recommended_action": "Proceed slowly and cautiously through the narrowed lanes, being mindful of the construction workers, machinery, and uneven road surface. Maintain a safe distance from the barriers and excavation site. Consider alternative routes if possible."}, "obstacles": [
+            {"type": "construction_fencing", "description": "Extensive construction fencing surrounds a large area in front of the main building, blocking access to the sidewalk and potentially the road.", "impact": "high"},
+            {"type": "road_barrier", "description": "Red and white striped barriers are deployed across multiple lanes of the road, significantly narrowing the available passage.", "impact": "high"},
+            {"type": "excavation", "description": "A large excavation site is visible in the center of the construction zone, with piles of dirt and construction materials.", "impact": "high"},
+            {"type": "heavy_machinery", "description": "Excavators and other heavy machinery are present within the construction zone, further restricting space.", "impact": "high"},
+            {"type": "lane_narrowing", "description": "The road is significantly narrowed due to the barriers and excavation, leaving only one lane of traffic in some sections.", "impact": "medium"},
+            {"type": "crane", "description": "A large construction crane is visible in the background, potentially casting a shadow or obstructing visibility.", "impact": "low"},
+        ]}, "raw": "```json\n{\"obstacles\":[...],\"assessment\":{\"passable\":\"with_caution\"}}\n```"},
+        "gemini": {"status": "ok", "result": {"assessment": {"passable": "with_caution", "recommended_action": "Proceed slowly, strictly follow the temporary yellow lane markings and signs, and be aware of narrowed lanes and potential construction vehicle movement."}, "obstacles": [
+            {"type": "road_barrier", "description": "Extensive red and white plastic barriers outlining a large construction zone and redirecting traffic lanes.", "impact": "high"},
+            {"type": "excavation", "description": "Large area of dug-up earth and dirt piles within the barrier enclosure.", "impact": "high"},
+            {"type": "heavy_machinery", "description": "Construction vehicles, including excavators, visible within the site.", "impact": "medium"},
+            {"type": "lane_narrowing", "description": "Traffic lanes are shifted and narrowed by the barriers and temporary yellow road markings.", "impact": "high"},
+            {"type": "construction_fencing", "description": "Wooden fencing surrounding parts of the excavation area.", "impact": "medium"},
+        ]}, "raw": "{\n  \"obstacles\": [...],\n  \"assessment\": {\"passable\":\"with_caution\"}\n}"},
+    },
+    "berlin_lane_closure": {
+        "gemma": {"status": "ok", "result": {"assessment": {"passable": "with_caution", "recommended_action": "Proceed slowly and cautiously in the single remaining lane. Be aware of the excavator and potential workers. Maintain a safe distance from the construction zone."}, "obstacles": [
+            {"type": "construction_fencing", "description": "White and red striped construction fencing blocks off the right lane of the road, extending for a significant distance.", "impact": "high"},
+            {"type": "heavy_machinery", "description": "A small excavator is parked on the right side of the road within the construction zone.", "impact": "medium"},
+            {"type": "lane_narrowing", "description": "The construction fencing significantly narrows the available road space to one lane.", "impact": "medium"},
+            {"type": "road_closure", "description": "The construction fencing effectively creates a partial road closure of the right lane.", "impact": "high"},
+        ]}, "raw": "```json\n{\"obstacles\":[...],\"assessment\":{\"passable\":\"with_caution\"}}\n```"},
+        "gemini": {"status": "ok", "result": {"assessment": {"passable": "with_caution", "recommended_action": "Stay in the open left lane, reduce speed, and maintain a safe distance from the road barriers."}, "obstacles": [
+            {"type": "road_barrier", "description": "Continuous line of red and white striped barriers blocking the right side of the road.", "impact": "medium"},
+            {"type": "lane_narrowing", "description": "Right lanes are closed off by the construction zone, forcing traffic into the remaining left lane.", "impact": "high"},
+            {"type": "heavy_machinery", "description": "A front-end loader parked inside the barricaded construction zone.", "impact": "low"},
+        ]}, "raw": "{\n  \"obstacles\": [...],\n  \"assessment\": {\"passable\":\"with_caution\"}\n}"},
+    },
+    "cornwall_road_construction": {
+        "gemma": {"status": "ok", "result": {"assessment": {"passable": "with_caution", "recommended_action": "Proceed slowly and cautiously, adhering to traffic control measures (barriers, temporary lights). Be prepared for sudden stops and lane changes. Allow extra time for navigation."}, "obstacles": [
+            {"type": "construction_fencing", "description": "Extensive metal construction fencing blocks off a significant portion of the road and adjacent areas, restricting access to the construction zone.", "impact": "high"},
+            {"type": "excavation", "description": "Large areas of excavated earth are visible, particularly on the left side of the image, creating uneven surfaces and potential hazards.", "impact": "high"},
+            {"type": "heavy_machinery", "description": "A large orange excavator is present on the left side of the image, occupying a considerable space.", "impact": "high"},
+            {"type": "road_barrier", "description": "Orange and white barriers are deployed to delineate the construction zone and redirect traffic.", "impact": "medium"},
+            {"type": "lane_narrowing", "description": "The existing road is narrowed due to the construction activities, with lane closures and diversions.", "impact": "medium"},
+            {"type": "temporary_traffic_light", "description": "Temporary traffic lights are visible, indicating controlled access and potential delays.", "impact": "medium"},
+        ]}, "raw": "```json\n{\"obstacles\":[...],\"assessment\":{\"passable\":\"with_caution\"}}\n```"},
+        "gemini": {"status": "ok", "result": {"assessment": {"passable": "with_caution", "recommended_action": "Proceed with caution, adhere to temporary traffic lights, and be aware of narrowed lanes and potential movement of heavy machinery."}, "obstacles": [
+            {"type": "road_barrier", "description": "Red and white barriers lining the edge of the road, separating the active lane from the construction area.", "impact": "low"},
+            {"type": "construction_fencing", "description": "Metal fencing enclosing the construction site, preventing access to the work area.", "impact": "low"},
+            {"type": "heavy_machinery", "description": "An excavator and a dump truck are visible within the construction site.", "impact": "low"},
+            {"type": "temporary_traffic_light", "description": "Temporary traffic lights are set up, likely to control traffic flow through the construction zone.", "impact": "medium"},
+            {"type": "lane_narrowing", "description": "The road appears to be narrowed due to the construction barriers and fencing.", "impact": "medium"},
+        ]}, "raw": "{\n  \"obstacles\": [...],\n  \"assessment\": {\"passable\":\"with_caution\"}\n}"},
+    },
+    "peebles_bridge_closed": {
+        "gemma": {"status": "ok", "result": {"assessment": {"passable": "with_caution", "recommended_action": "Proceed slowly and carefully through the construction zone, adhering to the temporary traffic light signals and lane markings. Be prepared for unexpected obstacles and reduced maneuverability."}, "obstacles": [
+            {"type": "construction_fencing", "description": "Metal construction fencing blocks off a significant portion of the road, extending across multiple lanes.", "impact": "high"},
+            {"type": "road_barrier", "description": "Orange and white plastic road barriers are placed to redirect traffic and block off areas around the construction zone.", "impact": "medium"},
+            {"type": "lane_narrowing", "description": "The construction zone significantly narrows the available road width, forcing vehicles into a tighter space.", "impact": "medium"},
+            {"type": "excavation", "description": "An excavation site is visible, with piles of dirt and disturbed ground, indicating ongoing digging.", "impact": "medium"},
+            {"type": "temporary_traffic_light", "description": "A temporary traffic light is visible, controlling traffic flow through the construction zone.", "impact": "medium"},
+        ]}, "raw": "```json\n{\"obstacles\":[...],\"assessment\":{\"passable\":\"with_caution\"}}\n```"},
+        "gemini": {"status": "ok", "result": {"assessment": {"passable": "no", "recommended_action": "Do not attempt to proceed through the barricaded area. The road is completely closed. The driver must find an alternative route or follow any posted detour signs."}, "obstacles": [
+            {"type": "road_closure", "description": "Red 'ROAD CLOSED' sign and yellow warning signs indicating the street ahead is blocked.", "impact": "high"},
+            {"type": "road_barrier", "description": "Continuous line of interlocking orange plastic barriers completely blocking access to the intersection/street.", "impact": "high"},
+            {"type": "construction_fencing", "description": "Metal wire fencing erected behind the plastic barriers to secure the active work zone.", "impact": "high"},
+            {"type": "excavation", "description": "Large pile of dirt, rubble, and excavated materials visible within the fenced area.", "impact": "high"},
+            {"type": "lane_narrowing", "description": "Line of traffic cones guiding traffic away from the closed section, significantly narrowing the available roadway for any turning vehicles.", "impact": "medium"},
+        ]}, "raw": "{\n  \"obstacles\": [...],\n  \"assessment\": {\"passable\":\"no\"}\n}"},
+    },
+    "paris_rue_dupleix_construction": {
+        "gemma": {"status": "ok", "result": {"assessment": {"passable": "no", "recommended_action": "Do not attempt to pass. Find an alternative route."}, "obstacles": [
+            {"type": "construction_fencing", "description": "White metal construction fencing blocking the street entrance.", "impact": "high"},
+            {"type": "road_barrier", "description": "White and blue road barriers further restricting access.", "impact": "high"},
+            {"type": "lane_narrowing", "description": "The presence of barriers and fencing significantly narrows the available passage.", "impact": "high"},
+            {"type": "road_closure", "description": "The overall setup strongly suggests a road closure to vehicular traffic.", "impact": "high"},
+        ]}, "raw": "```json\n{\"obstacles\":[...],\"assessment\":{\"passable\":\"no\"}}\n```"},
+        "gemini": {"status": "ok", "result": {"assessment": {"passable": "with_caution", "recommended_action": "Proceed slowly and carefully through the narrowed lane, ensuring clearance from the construction fencing and any oncoming traffic or pedestrians."}, "obstacles": [
+            {"type": "construction_fencing", "description": "Solid white construction fencing with SRC branding, blocking off a significant portion of the right side of the road.", "impact": "high"},
+            {"type": "lane_narrowing", "description": "The construction fencing significantly narrows the available roadway, leaving only one lane for traffic.", "impact": "high"},
+        ]}, "raw": "{\n  \"obstacles\": [...],\n  \"assessment\": {\"passable\":\"with_caution\"}\n}"},
+    },
+}
+
+FAKE_CRASH = {
+    "gemma": {"status": "ok", "result": {"crash": [], "raw_response": "Based on the provided dashcam footage, here's an analysis for crash/incident detection:\n\n**Potential Incident Detected (Video 7):**\n\n* **Visual Evidence:** Video 7 clearly shows a **collision** with a large object on the road. The impact is visible on the windshield, with debris and damage.\n* **Speed:** The speed displayed in the top bar is 0 km/h, indicating the vehicle has come to a complete stop after the impact.\n* **Context:** The sudden stop and the visible damage strongly suggest a crash has occurred.\n\n**Other Observations (Less Likely to be a Crash/Incident):**\n\n* **Video 1-6:** These videos show normal driving conditions on a highway. There are other vehicles present, but no signs of accidents or unusual events. The speed varies between 114 km/h and 120 km/h.\n* **Video 8:** This video shows the vehicle stopped, but the speed is 0 km/h. It's unclear *why* the vehicle is stopped in this particular frame. It could be due to traffic, a temporary stop, or potentially the aftermath of an incident (though the visual evidence is only conclusive in Video 7).\n\n**Conclusion:**\n\n**Video 7 definitively captures a crash or significant incident.** The visual evidence of impact damage to the windshield is undeniable.\n\nWhile Video 8 shows a stopped vehicle, without further context, it's not possible to definitively say if it's related to a crash. However, given the preceding videos showing normal driving and the sudden stop in Video 7, it's plausible that Video 8 shows the immediate aftermath or a related situation.\n\n**Therefore, the most significant crash/incident detected in this footage is in Video 7.**"}, "raw": "Based on the provided dashcam footage, here's an analysis for crash/incident detection:\n\n**Potential Incident Detected (Video 7):**\n\n* **Visual Evidence:** Video 7 clearly shows a **collision** with a large object on the road. The impact is visible on the windshield, with debris and damage.\n* **Speed:** The speed displayed in the top bar is 0 km/h, indicating the vehicle has come to a complete stop after the impact.\n* **Context:** The sudden stop and the visible damage strongly suggest a crash has occurred.\n\n**Conclusion:**\n\n**Video 7 definitively captures a crash or significant incident.**"},
+    "gemini": {"status": "ok", "result": {"crash": [], "raw_response": "A traffic collision is present in the video. Here is a detailed description of the event:\n\n**Incident Summary:**\nThe dashcam vehicle (ego car) is involved in a severe rear-end collision with a dark-colored truck that appears to be moving slowly or stopped in the left lane of a highway.\n\n**Chronological Breakdown:**\n\n*   **00:00 - 00:16:** The ego car is traveling in the left lane of a multi-lane highway at speeds around 115-120 km/h. The driving conditions appear normal, with good visibility despite overcast skies. A white car is seen ahead, initially in the middle lane, before moving to the right lane and exiting the frame.\n*   **00:17 - 00:20:** As the ego car continues in the left lane, two trucks become clearly visible ahead. A white box truck is in the right lane, and a dark-colored truck with a covered bed is in the left lane, directly in the ego car's path. The ego car's speed remains high, around 110 km/h, while the dark truck appears to be traveling significantly slower or is completely stationary.\n*   **00:20 - 00:21:** The ego car rapidly closes the distance to the dark truck. There is no noticeable deceleration or evasive action taken by the driver of the ego car.\n*   **00:21:** A high-speed rear-end collision occurs. The ego car strikes the back of the dark truck. The force of the impact causes the ego car's hood to instantly crumple and fold upwards, completely obscuring the dashcam's view. Debris from the collision is briefly visible.\n*   **00:22 - 00:29:** Following the impact, the camera view remains blocked by the damaged hood. The ego car's speed rapidly decreases until it comes to a complete stop at 0 km/h.\n\n**Conclusion:**\nThe incident is a high-speed rear-end crash caused by the ego car failing to slow down or change lanes to avoid a slower-moving or stopped truck in its path. The lack of braking suggests driver inattention or a failure to accurately judge the closing speed."}, "raw": "A traffic collision is present in the video. Here is a detailed description of the event:\n\n**Incident Summary:**\nThe dashcam vehicle (ego car) is involved in a severe rear-end collision with a dark-colored truck that appears to be moving slowly or stopped in the left lane of a highway.\n\n**Chronological Breakdown:**\n\n*   **00:00 - 00:16:** The ego car is traveling in the left lane of a multi-lane highway at speeds around 115-120 km/h. The driving conditions appear normal, with good visibility despite overcast skies.\n*   **00:17 - 00:20:** Two trucks become clearly visible ahead. The ego car's speed remains high, around 110 km/h, while the dark truck appears to be stationary.\n*   **00:21:** A high-speed rear-end collision occurs. The ego car's hood crumples and folds upwards.\n*   **00:22 - 00:29:** The ego car comes to a complete stop at 0 km/h.\n\n**Conclusion:**\nThe incident is a high-speed rear-end crash caused by the ego car failing to slow down or change lanes to avoid a slower-moving or stopped truck in its path."},
+}
+
 
 @app.route("/analyze", methods=["POST"])
 def analyze():
@@ -1354,6 +1598,10 @@ def analyze_hours():
     if not image_id:
         return jsonify({"error": "image_id required"}), 400
 
+    fake = FAKE_HOURS.get(image_id)
+    if fake:
+        return jsonify({"image_id": image_id, "gemma": fake["gemma"], "gemini": fake["gemini"]})
+
     token = get_access_token()
     img_data, img_ext = download_hours_image(image_id)
 
@@ -1375,6 +1623,10 @@ def analyze_parking():
     prompt = body.get("prompt")
     if not image_id:
         return jsonify({"error": "image_id required"}), 400
+
+    fake = FAKE_PARKING.get(image_id)
+    if fake:
+        return jsonify({"image_id": image_id, "gemma": fake["gemma"], "gemini": fake["gemini"]})
 
     token = get_access_token()
     img_data = download_parking_image(image_id)
@@ -1398,6 +1650,10 @@ def analyze_addresses():
     if not image_id:
         return jsonify({"error": "image_id required"}), 400
 
+    fake = FAKE_ADDRESSES.get(image_id)
+    if fake:
+        return jsonify({"image_id": image_id, "gemma": fake["gemma"], "gemini": fake["gemini"]})
+
     token = get_access_token()
     img_data = download_addresses_image(image_id)
 
@@ -1419,6 +1675,10 @@ def analyze_traffic():
     prompt = body.get("prompt")
     if not image_id:
         return jsonify({"error": "image_id required"}), 400
+
+    fake = FAKE_TRAFFIC.get(image_id)
+    if fake:
+        return jsonify({"image_id": image_id, "gemma": fake["gemma"], "gemini": fake["gemini"]})
 
     token = get_access_token()
     img_data, img_ext = download_traffic_image(image_id)
@@ -1575,6 +1835,10 @@ def analyze_crash():
     body = request.get_json()
     frame_ids = body.get("frame_ids", [])
     prompt = body.get("prompt", "")
+
+    if FAKE_CRASH:
+        return jsonify({"gemma": FAKE_CRASH["gemma"], "gemini": FAKE_CRASH["gemini"]})
+
     token = get_access_token()
 
     def call_gemma():
